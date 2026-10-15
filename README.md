@@ -106,3 +106,13 @@ Payment Provider
 Each service owns its own database and communicates through APIs or asynchronous events.
 
 The architecture is introduced incrementally, with correctness and reliability taking priority over unnecessary complexity.
+
+## Project scaffold
+
+The Spring Boot application lives in `order-service/`. The controller and DTO are empty scaffolds; business logic and infrastructure configuration will be added later.
+
+Compile from the repository root:
+
+```sh
+./mvnw -f order-service/pom.xml compile
+```
