@@ -5,3 +5,8 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/order_db}
     username: ${DB_USERNAME:order_user}
     password: ${DB_PASSWORD:order_password}
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  jpa:
+    hibernate:
+      ddl-auto: validate
