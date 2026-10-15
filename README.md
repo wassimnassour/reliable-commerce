@@ -109,10 +109,32 @@ The architecture is introduced incrementally, with correctness and reliability t
 
 ## Project scaffold
 
-The Spring Boot application lives in `order-service/`. The controller and DTO are empty scaffolds; business logic and infrastructure configuration will be added later.
+The Spring Boot application lives in `order-service/`. The controller and DTO are empty scaffolds; business logic will be added later.
 
 Compile from the repository root:
 
 ```sh
 ./mvnw -f order-service/pom.xml compile
 ```
+
+## Local database
+
+Start PostgreSQL with Docker Desktop running:
+
+```sh
+docker compose -f infrastructure/docker-compose.yml up -d --wait
+```
+
+Then run `OrderServiceApplication` from IntelliJ. The application connects to
+`jdbc:postgresql://localhost:5432/order_db` with username `order_user` and password
+`order_password`. These credentials are for local development. Override the application
+connection with `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` when needed.
+
+Database data persists in a Docker volume. Stop PostgreSQL while keeping the data:
+
+```sh
+docker compose -f infrastructure/docker-compose.yml down
+```
+
+This setup creates the database only; application tables require migrations or a
+separate Hibernate schema-generation configuration.
