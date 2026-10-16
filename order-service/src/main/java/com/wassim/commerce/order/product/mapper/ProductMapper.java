@@ -1,13 +1,15 @@
 package com.wassim.commerce.order.product.mapper;
 
 import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
-import com.wassim.commerce.order.product.api.dto.response.CreateProductResponse;
+import com.wassim.commerce.order.product.api.dto.response.ProductResponse;
 import com.wassim.commerce.order.product.domain.Product;
+import org.mapstruct.InheritConfiguration;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface ProductMapper {
+
     @Mapping(target = "productName", source = "name")
     @Mapping(target = "productDescription", source = "description")
     @Mapping(target = "productPrice", source = "price")
@@ -22,5 +24,8 @@ public interface ProductMapper {
     @Mapping(target = "description", source = "productDescription")
     @Mapping(target = "price", source = "productPrice")
     @Mapping(target = "stockQuantity", source = "productQuantity")
-    CreateProductResponse toResponse(Product product);
+    ProductResponse toResponse(Product product);
+
+    @InheritConfiguration(name = "toResponse")
+    ProductResponse toOneProductResponse(Product product);
 }

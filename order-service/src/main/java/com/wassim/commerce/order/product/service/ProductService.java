@@ -1,8 +1,9 @@
 package com.wassim.commerce.order.product.service;
 
 import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
-import com.wassim.commerce.order.product.api.dto.response.CreateProductResponse;
+import com.wassim.commerce.order.product.api.dto.response.ProductResponse;
 
 public interface ProductService {
-    CreateProductResponse createProduct(CreateProductDto product);
+    ProductResponse createProduct(CreateProductDto product);
+    ProductResponse getProductById(Long id);
 }

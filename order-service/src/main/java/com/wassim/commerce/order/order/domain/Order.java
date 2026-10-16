@@ -27,7 +27,7 @@ public class Order {
     private Integer totalQuantity;
 
     @OneToMany(mappedBy = "order")
-    private  List<OrderItems> orderItems;
+    private List<OrderItems> orderItems;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "user_id", nullable = false)

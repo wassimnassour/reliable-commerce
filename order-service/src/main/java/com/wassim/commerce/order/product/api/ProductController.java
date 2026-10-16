@@ -1,7 +1,7 @@
 package com.wassim.commerce.order.product.api;
 
 import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
-import com.wassim.commerce.order.product.api.dto.response.CreateProductResponse;
+import com.wassim.commerce.order.product.api.dto.response.ProductResponse;
 import com.wassim.commerce.order.product.service.ProductService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -20,9 +20,16 @@ public class ProductController {
 
 
     @PostMapping
-    public ResponseEntity<CreateProductResponse> create(@Valid @RequestBody CreateProductDto productDto) {
-        CreateProductResponse product = productService.createProduct(productDto);
+    public ResponseEntity<ProductResponse> create(@Valid @RequestBody CreateProductDto productDto) {
+        ProductResponse product = productService.createProduct(productDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(product);
     }
 
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ProductResponse> getProductDetails(@PathVariable Long id) {
+        System.out.println(id);
+        ProductResponse product =  productService.getProductById(id);
+        return ResponseEntity.ok().body(product);
+    }
 }
