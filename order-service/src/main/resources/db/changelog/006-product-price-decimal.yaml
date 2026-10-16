@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-product-price-decimal
+      author: wassim
+      changes:
+        - modifyDataType:
+            tableName: products
+            columnName: product_price
+            newDataType: numeric(19,2)
+      rollback:
+        - modifyDataType:
+            tableName: products
+            columnName: product_price
+            newDataType: double precision
