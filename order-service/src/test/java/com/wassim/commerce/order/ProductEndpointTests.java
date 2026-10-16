@@ -2,6 +2,7 @@ package com.wassim.commerce.order;
 
 import com.wassim.commerce.order.enums.Currency;
 import com.wassim.commerce.order.product.persistence.ProductRepository;
+import com.wassim.commerce.order.product.domain.Product;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -141,6 +142,45 @@ class ProductEndpointTests {
                 """);
         assertEquals(400, response.statusCode(), response.body());
         assertEquals(before, repository.count());
+    }
+
+    @Test
+    void getsExistingProductThroughPublicEndpoint() throws Exception {
+        Product product = new Product();
+        product.setProductName("Coffee");
+        product.setProductDescription("Beans");
+        product.setProductPrice(new BigDecimal("25.10"));
+        product.setProductQuantity(7);
+        Product saved = repository.saveAndFlush(product);
+
+        var response = get("/api/products/" + saved.getId());
+        assertEquals(200, response.statusCode(), response.body());
+        var body = json.readTree(response.body());
+        assertEquals(saved.getId().longValue(), body.get("id").asLong());
+        assertEquals("Coffee", body.get("name").asText());
+        assertEquals("Beans", body.get("description").asText());
+        assertEquals(0, new BigDecimal("25.10").compareTo(new BigDecimal(body.get("price").asText())));
+        assertEquals(7, body.get("stockQuantity").asInt());
+        assertEquals("MAD", body.get("currency").asText());
+        assertEquals(404, get("/api/admin/products/" + saved.getId()).statusCode());
+    }
+
+    @Test
+    void missingProductReturns404FromExceptionHandler() throws Exception {
+        long id = Long.MAX_VALUE;
+        var response = get("/api/products/" + id);
+        assertEquals(404, response.statusCode(), response.body());
+        var body = json.readTree(response.body());
+        assertEquals(404, body.get("status").asInt());
+        assertEquals("Not Found", body.get("error").asText());
+        assertEquals("Can't find product with id " + id, body.get("message").asText());
+        assertTrue(body.hasNonNull("timestamp"));
+    }
+
+    private HttpResponse<String> get(String path) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .GET().build();
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private HttpResponse<String> post(String body) throws Exception {

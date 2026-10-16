@@ -2,8 +2,9 @@ package com.wassim.commerce.order.product.service.impl;
 
 
 import com.wassim.commerce.order.exaptions.BadRequest;
+import com.wassim.commerce.order.exaptions.NotFoundException;
 import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
-import com.wassim.commerce.order.product.api.dto.response.CreateProductResponse;
+import com.wassim.commerce.order.product.api.dto.response.ProductResponse;
 import com.wassim.commerce.order.product.domain.Product;
 import com.wassim.commerce.order.product.mapper.ProductMapper;
 import com.wassim.commerce.order.product.persistence.ProductRepository;
@@ -21,7 +22,7 @@ public class ProductServiceImpl implements ProductService {
         this.productMapper = productMapper;
     }
 
-     public CreateProductResponse createProduct(CreateProductDto productDto) {
+     public ProductResponse createProduct(CreateProductDto productDto) {
         try{
             Product product = productMapper.toProduct(productDto);
             Product saved = productRepository.save(product);
@@ -32,5 +33,15 @@ public class ProductServiceImpl implements ProductService {
         }
 
      }
+
+    @Override
+    public ProductResponse getProductById(Long id) {
+         Product product= productRepository.findById(id).orElseThrow(
+                 ()-> new NotFoundException("Can't find product with id " + id)
+         );
+
+
+        return productMapper.toResponse(product);
+    }
 
 }
