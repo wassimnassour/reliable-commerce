@@ -41,7 +41,7 @@ public class ProductServiceImpl implements ProductService {
          );
 
 
-        return productMapper.toOneProductResponse(product);
+        return productMapper.toResponse(product);
     }
 
 }

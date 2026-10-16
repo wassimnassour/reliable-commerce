@@ -3,7 +3,6 @@ package com.wassim.commerce.order.product.mapper;
 import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
 import com.wassim.commerce.order.product.api.dto.response.ProductResponse;
 import com.wassim.commerce.order.product.domain.Product;
-import org.mapstruct.InheritConfiguration;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -26,6 +25,4 @@ public interface ProductMapper {
     @Mapping(target = "stockQuantity", source = "productQuantity")
     ProductResponse toResponse(Product product);
 
-    @InheritConfiguration(name = "toResponse")
-    ProductResponse toOneProductResponse(Product product);
 }
