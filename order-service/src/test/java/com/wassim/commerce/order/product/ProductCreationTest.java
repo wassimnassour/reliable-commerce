@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
 import java.util.Set;
+import java.math.BigDecimal;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -15,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ProductCreationTest {
     @Test
     void acceptsZeroStockAndDefaultsCurrencyToMad() {
-        var request = new CreateProductDto("Coffee", "Beans", 0, 25.0, null);
+        var request = new CreateProductDto("Coffee", "Beans", 0, new BigDecimal("25.00"), null);
         try (var factory = Validation.buildDefaultValidatorFactory()) {
             assertTrue(factory.getValidator().validate(request).isEmpty());
         }
@@ -24,27 +25,27 @@ class ProductCreationTest {
 
     @Test
     void rejectsBlankNameNegativeStockAndNonpositivePrice() {
-        var request = new CreateProductDto("  ", null, -1, 0.0, null);
+        var request = new CreateProductDto("  ", null, -1, BigDecimal.ZERO, null);
         try (var factory = Validation.buildDefaultValidatorFactory()) {
             var fields = factory.getValidator().validate(request).stream()
                     .map(violation -> violation.getPropertyPath().toString())
                     .collect(Collectors.toSet());
-            assertEquals(Set.of("productName", "productQuantity", "productPrice"), fields);
+            assertEquals(Set.of("name", "stockQuantity", "price"), fields);
         }
     }
 
     @Test
-    void responseIncludesGeneratedIdAndSavedProductValues() {
+    void mapsProductFieldsToResponse() {
         var mapper = Mappers.getMapper(ProductMapper.class);
-        var request = new CreateProductDto("Coffee", "Beans", 0, 25.0, null);
+        var request = new CreateProductDto("Coffee", "Beans", 0, new BigDecimal("25.00"), null);
         var product = mapper.toProduct(request);
         product.setId(42L);
         var response = mapper.toResponse(product);
         assertEquals(42L, response.id());
-        assertEquals("Coffee", response.productName());
-        assertEquals("Beans", response.productDescription());
-        assertEquals(25.0, response.productPrice());
-        assertEquals(0, response.productQuantity());
+        assertEquals("Coffee", response.name());
+        assertEquals("Beans", response.description());
+        assertEquals(new BigDecimal("25.00"), response.price());
+        assertEquals(0, response.stockQuantity());
         assertEquals(Currency.MAD, response.currency());
     }
 }

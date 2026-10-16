@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.Instant;
+import java.math.BigDecimal;
 
 import java.util.List;
 
@@ -19,7 +20,8 @@ public class Product {
     private Long id;
     private String productName;
     private String productDescription;
-    private Double productPrice;
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal productPrice;
     private Integer productQuantity;
 
     @Enumerated(EnumType.STRING)

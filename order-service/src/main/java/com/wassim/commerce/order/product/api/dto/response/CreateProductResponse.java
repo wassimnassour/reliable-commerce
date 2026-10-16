@@ -1,13 +1,14 @@
 package com.wassim.commerce.order.product.api.dto.response;
 
 import com.wassim.commerce.order.enums.Currency;
+import java.math.BigDecimal;
 
 public record CreateProductResponse(
         Long id,
-        String productName,
-        String productDescription,
-        Double productPrice,
-        Integer productQuantity,
+        String name,
+        String description,
+        BigDecimal price,
+        Integer stockQuantity,
         Currency currency
 ) {
 }
