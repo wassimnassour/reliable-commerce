@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-add-product-currency
+      author: wassim
+      changes:
+        - addColumn:
+            tableName: products
+            columns:
+              - column:
+                  name: currency
+                  type: varchar(3)
+                  defaultValue: MAD
+                  constraints:
+                    nullable: false
+        - sql:
+            dbms: postgresql
+            sql: ALTER TABLE products ADD CONSTRAINT ck_products_currency CHECK (currency = 'MAD')
+      rollback:
+        - dropColumn:
+            tableName: products
+            columnName: currency

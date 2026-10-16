@@ -1,4 +1,7 @@
-package com.wassim.commerce.order.order.domain;
+package com.wassim.commerce.order.product.domain;
+
+import com.wassim.commerce.order.order.domain.OrderItems;
+import com.wassim.commerce.order.enums.Currency;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -18,6 +21,10 @@ public class Product {
     private String productDescription;
     private Double productPrice;
     private Integer productQuantity;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 3)
+    private Currency currency = Currency.MAD;
 
     @OneToMany(mappedBy = "product")
     private List<OrderItems> orderItems;
