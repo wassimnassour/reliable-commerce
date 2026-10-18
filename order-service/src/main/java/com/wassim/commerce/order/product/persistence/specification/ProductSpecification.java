@@ -17,15 +17,15 @@ public class ProductSpecification {
         };
     }
 
-    public static Specification<Product> productPriceGreaterThan(Integer greaterThan) {
-        return (root, query, cb) -> greaterThan == null
+    public static Specification<Product> productPriceAtLeast(BigDecimal minPrice) {
+        return (root, query, cb) -> minPrice == null
                 ? cb.conjunction()
-                : cb.greaterThan(root.<BigDecimal>get("productPrice"), BigDecimal.valueOf(greaterThan));
+                : cb.greaterThanOrEqualTo(root.<BigDecimal>get("productPrice"), minPrice);
     }
 
-    public static Specification<Product> productPriceLessThan(Integer lessThen) {
-        return (root, query, cb) -> lessThen == null
+    public static Specification<Product> productPriceAtMost(BigDecimal maxPrice) {
+        return (root, query, cb) -> maxPrice == null
                 ? cb.conjunction()
-                : cb.lessThan(root.<BigDecimal>get("productPrice"), BigDecimal.valueOf(lessThen));
+                : cb.lessThanOrEqualTo(root.<BigDecimal>get("productPrice"), maxPrice);
     }
 }

@@ -4,10 +4,10 @@ import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
 import com.wassim.commerce.order.product.api.dto.request.ProductFilter;
 import com.wassim.commerce.order.product.api.dto.response.ProductResponse;
 
-import java.util.List;
+import com.wassim.commerce.order.product.api.dto.response.ProductSliceResponse;
 
 public interface ProductService {
     ProductResponse createProduct(CreateProductDto product);
     ProductResponse getProductById(Long id);
-    List<ProductResponse>  getAllProducts(ProductFilter productFilter);
+    ProductSliceResponse  getAllProducts(ProductFilter productFilter);
 }

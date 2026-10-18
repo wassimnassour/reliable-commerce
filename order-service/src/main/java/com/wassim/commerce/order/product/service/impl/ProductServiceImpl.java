@@ -13,10 +13,11 @@ import com.wassim.commerce.order.product.persistence.specification.ProductSpecif
 import com.wassim.commerce.order.product.service.ProductService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import com.wassim.commerce.order.product.api.dto.response.ProductSliceResponse;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -53,22 +54,29 @@ public class ProductServiceImpl implements ProductService {
 
 
     @Override
-    public List<ProductResponse> getAllProducts(ProductFilter productFilter) {
+    public ProductSliceResponse getAllProducts(ProductFilter productFilter) {
         Specification<Product> specification =  Specification.where(
-                ProductSpecification.productNameLike(productFilter.productName())
+                ProductSpecification.productNameLike(productFilter.name())
         ).and(
-                ProductSpecification.productPriceGreaterThan(productFilter.greaterThan())
+                ProductSpecification.productPriceAtLeast(productFilter.minPrice())
         ).and(
-                ProductSpecification.productPriceLessThan(productFilter.lessThen())
+                ProductSpecification.productPriceAtMost(productFilter.maxPrice())
         );
-        PageRequest pageRequest = PageRequest.of(productFilter.page(), productFilter.size());
-
-        List<Product> listOfProducts = productRepository.findAll(specification, pageRequest).getContent();
-
-        return listOfProducts.stream().map(
-                productMapper::toResponse
-        ).toList();
+        String[] sortParts = productFilter.sortBy().split(",");
+        String property = switch (sortParts[0]) {
+            case "name" -> "productName";
+            case "price" -> "productPrice";
+            default -> "id";
+        };
+        Sort.Direction direction = sortParts.length == 2
+                ? Sort.Direction.fromString(sortParts[1]) : Sort.Direction.ASC;
+        Sort sort = Sort.by(direction, property);
+        if (!property.equals("id")) {
+            sort = sort.and(Sort.by("id"));
+        }
+        PageRequest pageRequest = PageRequest.of(productFilter.page(), productFilter.size(), sort);
+        var slice = productRepository.findBy(specification, query -> query.slice(pageRequest));
+        return new ProductSliceResponse(slice.getContent().stream().map(productMapper::toResponse).toList(),
+                slice.getNumber(), slice.getSize(), slice.hasNext());
     }
-
-
 }

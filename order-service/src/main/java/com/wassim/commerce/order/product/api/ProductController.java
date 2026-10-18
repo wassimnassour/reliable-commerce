@@ -7,7 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import com.wassim.commerce.order.product.api.dto.response.ProductSliceResponse;
 
 @RestController
 @RequestMapping("/api/products")
@@ -24,11 +24,11 @@ public class ProductController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProductResponse>> getAllProducts(
+    public ResponseEntity<ProductSliceResponse> getAllProducts(
             @Valid @ModelAttribute ProductFilter productFilter
     ) {
 
-        List<ProductResponse> products =productService.getAllProducts(productFilter);
+        ProductSliceResponse products =productService.getAllProducts(productFilter);
         return ResponseEntity.ok(products);
     }
 }
