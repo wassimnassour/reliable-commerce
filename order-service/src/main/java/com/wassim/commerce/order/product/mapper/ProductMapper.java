@@ -25,4 +25,7 @@ public interface ProductMapper {
     @Mapping(target = "stockQuantity", source = "productQuantity")
     ProductResponse toResponse(Product product);
 
+
+
+
 }

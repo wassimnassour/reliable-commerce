@@ -4,13 +4,20 @@ package com.wassim.commerce.order.product.service.impl;
 import com.wassim.commerce.order.exaptions.BadRequest;
 import com.wassim.commerce.order.exaptions.NotFoundException;
 import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
+import com.wassim.commerce.order.product.api.dto.request.ProductFilter;
 import com.wassim.commerce.order.product.api.dto.response.ProductResponse;
 import com.wassim.commerce.order.product.domain.Product;
 import com.wassim.commerce.order.product.mapper.ProductMapper;
 import com.wassim.commerce.order.product.persistence.ProductRepository;
+import com.wassim.commerce.order.product.persistence.specification.ProductSpecification;
 import com.wassim.commerce.order.product.service.ProductService;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+
+import com.wassim.commerce.order.product.api.dto.response.ProductSliceResponse;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -44,4 +51,32 @@ public class ProductServiceImpl implements ProductService {
         return productMapper.toResponse(product);
     }
 
+
+
+    @Override
+    public ProductSliceResponse getAllProducts(ProductFilter productFilter) {
+        Specification<Product> specification =  Specification.where(
+                ProductSpecification.productNameLike(productFilter.name())
+        ).and(
+                ProductSpecification.productPriceAtLeast(productFilter.minPrice())
+        ).and(
+                ProductSpecification.productPriceAtMost(productFilter.maxPrice())
+        );
+        String[] sortParts = productFilter.sortBy().split(",");
+        String property = switch (sortParts[0]) {
+            case "name" -> "productName";
+            case "price" -> "productPrice";
+            default -> "id";
+        };
+        Sort.Direction direction = sortParts.length == 2
+                ? Sort.Direction.fromString(sortParts[1]) : Sort.Direction.ASC;
+        Sort sort = Sort.by(direction, property);
+        if (!property.equals("id")) {
+            sort = sort.and(Sort.by("id"));
+        }
+        PageRequest pageRequest = PageRequest.of(productFilter.page(), productFilter.size(), sort);
+        var slice = productRepository.findBy(specification, query -> query.slice(pageRequest));
+        return new ProductSliceResponse(slice.getContent().stream().map(productMapper::toResponse).toList(),
+                slice.getNumber(), slice.getSize(), slice.hasNext());
+    }
 }

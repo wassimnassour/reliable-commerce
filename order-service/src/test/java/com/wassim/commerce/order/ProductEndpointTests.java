@@ -177,6 +177,55 @@ class ProductEndpointTests {
         assertTrue(body.hasNonNull("timestamp"));
     }
 
+
+    @Test
+    void filtersPricesBeforeApplyingPageSize() throws Exception {
+        saveProduct("product-1", "133.00");
+        Product cheap = saveProduct("Coffee", "2.00");
+        saveProduct("Boundary", "3.00");
+
+        var all = get("/api/products");
+        assertEquals(200, all.statusCode(), all.body());
+        assertEquals(3, json.readTree(all.body()).size());
+
+        var filtered = get("/api/products?size=1&lessThen=3");
+        assertEquals(200, filtered.statusCode(), filtered.body());
+        var body = json.readTree(filtered.body());
+        assertEquals(1, body.size());
+        assertEquals(cheap.getId().longValue(), body.get(0).get("id").asLong());
+        assertEquals("Coffee", body.get(0).get("name").asText());
+
+        var empty = get("/api/products?size=1&lessThen=2");
+        assertEquals(200, empty.statusCode(), empty.body());
+        assertEquals(0, json.readTree(empty.body()).size());
+    }
+
+    @Test
+    void combinesNameAndPriceFiltersAndAppliesPagination() throws Exception {
+        saveProduct("Coffee cheap", "1.00");
+        Product match = saveProduct("Coffee regular", "2.00");
+        saveProduct("Tea", "2.00");
+        saveProduct("Coffee expensive", "4.00");
+
+        var response = get("/api/products?productName=COFFEE&greaterThan=1&lessThen=3&size=1");
+        assertEquals(200, response.statusCode(), response.body());
+        var body = json.readTree(response.body());
+        assertEquals(1, body.size());
+        assertEquals(match.getId().longValue(), body.get(0).get("id").asLong());
+
+        var secondPage = get("/api/products?productName=COFFEE&greaterThan=1&lessThen=3&size=1&page=1");
+        assertEquals(200, secondPage.statusCode(), secondPage.body());
+        assertEquals(0, json.readTree(secondPage.body()).size());
+    }
+
+    private Product saveProduct(String name, String price) {
+        Product product = new Product();
+        product.setProductName(name);
+        product.setProductPrice(new BigDecimal(price));
+        product.setProductQuantity(7);
+        return repository.saveAndFlush(product);
+    }
+
     private HttpResponse<String> get(String path) throws Exception {
         var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
                 .GET().build();
