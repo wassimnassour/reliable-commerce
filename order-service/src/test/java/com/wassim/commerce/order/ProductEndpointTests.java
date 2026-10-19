@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -46,7 +47,7 @@ class ProductEndpointTests {
     @Test
     void createsProductThroughHttpAndPersistsExactDecimalValues() throws Exception {
         var response = post("""
-                {"name":"Coffee","description":"Beans","price":25.10,"stockQuantity":0,"currency":"MAD"}
+                {"name":"Coffee","description":"Beans","price":25.10,"stockQuantity":0,"currency":"MAD","status":true}
                 """);
         assertEquals(201, response.statusCode(), response.body());
         var body = json.readTree(response.body());
@@ -59,6 +60,8 @@ class ProductEndpointTests {
         assertEquals(new BigDecimal("25.10"), saved.getProductPrice());
         assertEquals(0, saved.getProductQuantity());
         assertEquals(Currency.MAD, saved.getCurrency());
+        assertEquals(true, saved.getStatus());
+        assertTrue(body.get("status").asBoolean());
         assertNotNull(saved.getCreatedAt());
         assertNotNull(saved.getUpdatedAt());
         assertEquals(saved.getProductName(), body.get("name").asText());
@@ -66,6 +69,7 @@ class ProductEndpointTests {
         assertEquals(0, saved.getProductPrice().compareTo(new BigDecimal(body.get("price").asText())));
         assertEquals(0, body.get("stockQuantity").asInt());
         assertEquals("MAD", body.get("currency").asText());
+        assertTrue(body.get("status").asBoolean());
         assertFalse(body.has("productPrice"));
         assertEquals("numeric", jdbc.queryForObject("""
                 SELECT data_type FROM information_schema.columns
@@ -151,6 +155,7 @@ class ProductEndpointTests {
         product.setProductDescription("Beans");
         product.setProductPrice(new BigDecimal("25.10"));
         product.setProductQuantity(7);
+        product.setStatus(true);
         Product saved = repository.saveAndFlush(product);
 
         var response = get("/api/products/" + saved.getId());
@@ -162,6 +167,7 @@ class ProductEndpointTests {
         assertEquals(0, new BigDecimal("25.10").compareTo(new BigDecimal(body.get("price").asText())));
         assertEquals(7, body.get("stockQuantity").asInt());
         assertEquals("MAD", body.get("currency").asText());
+        assertTrue(body.get("status").asBoolean());
         assertEquals(404, get("/api/admin/products/" + saved.getId()).statusCode());
     }
 
@@ -293,6 +299,8 @@ class ProductEndpointTests {
         assertEquals("Original", saved.getProductName());
         assertEquals(7, saved.getProductQuantity());
         assertEquals(Currency.MAD, saved.getCurrency());
+        assertEquals(true, saved.getStatus());
+        assertTrue(json.readTree(response.body()).get("status").asBoolean());
     }
 
     @Test
@@ -326,8 +334,41 @@ class ProductEndpointTests {
         assertEquals(oldVersion + 1, saved.getVersion().longValue());
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void createsProductWithStatus(boolean status) throws Exception {
+        var response = post("""
+                {"name":"Tea","price":25.10,"stockQuantity":1,"status":%s}
+                """.formatted(status));
+        assertEquals(201, response.statusCode(), response.body());
+        var body = json.readTree(response.body());
+        assertEquals(status, body.get("status").asBoolean());
+        assertEquals(status, repository.findById(body.get("id").asLong()).orElseThrow().getStatus());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void updatesStatusWithoutChangingOtherFields(boolean status) throws Exception {
+        Product product = saveProduct("Original", "25.10");
+        product.setStatus(!status);
+        product = repository.saveAndFlush(product);
+
+        var response = patch(product.getId(), """
+                {"status":%s,"version":%d}
+                """.formatted(status, product.getVersion()));
+        assertEquals(200, response.statusCode(), response.body());
+        var body = json.readTree(response.body());
+        assertEquals(status, body.get("status").asBoolean());
+        Product saved = repository.findById(product.getId()).orElseThrow();
+        assertEquals(status, saved.getStatus());
+        assertEquals(product.getVersion() + 1, saved.getVersion().longValue());
+        assertEquals("Original", saved.getProductName());
+        assertEquals(new BigDecimal("25.10"), saved.getProductPrice());
+        assertEquals(7, saved.getProductQuantity());
+    }
+
     private HttpResponse<String> patch(long id, String body) throws Exception {
-        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/products/" + id))
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/admin/products/" + id))
                 .header("Content-Type", "application/json")
                 .method("PATCH", HttpRequest.BodyPublishers.ofString(body))
                 .build();
@@ -339,6 +380,7 @@ class ProductEndpointTests {
         product.setProductName(name);
         product.setProductPrice(new BigDecimal(price));
         product.setProductQuantity(7);
+        product.setStatus(true);
         return repository.saveAndFlush(product);
     }
 

@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009-add-status-to-product.yaml
+      author: wassimnassour
+      changes:
+        - addColumn:
+            tableName: products
+            columns:
+              - column:
+                  name: status
+                  type: boolean
+                  defaultValueBoolean: false

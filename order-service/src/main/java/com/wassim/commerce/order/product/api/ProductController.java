@@ -24,11 +24,8 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
-    @PatchMapping("/{id}")
-    public ResponseEntity<ProductResponse> updateMethod(@Valid @RequestBody UpdateProductDto updateProductDto, @PathVariable Long id) {
-        ProductResponse productResponse = productService.updateProduct(id, updateProductDto);
-        return ResponseEntity.ok(productResponse);
-    }
+
+
 
     @GetMapping
     public ResponseEntity<ProductSliceResponse> getAllProducts(

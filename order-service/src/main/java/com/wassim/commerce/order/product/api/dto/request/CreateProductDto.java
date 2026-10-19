@@ -10,7 +10,8 @@ public record CreateProductDto(
         @Size(max = 255) String description,
         @NotNull @PositiveOrZero Integer stockQuantity,
         @NotNull @Positive @Digits(integer = 17, fraction = 2) BigDecimal price,
-        Currency currency
+        Currency currency,
+        Boolean status
 ) {
     public CreateProductDto {
         if (currency == null) {

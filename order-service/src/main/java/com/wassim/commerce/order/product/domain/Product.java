@@ -37,6 +37,8 @@ public class Product {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    private  Boolean status;
+
     @Version
     private Long version;
 

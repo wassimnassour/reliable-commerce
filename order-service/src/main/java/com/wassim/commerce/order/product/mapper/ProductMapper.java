@@ -34,6 +34,7 @@ public interface ProductMapper {
     @Mapping(target = "productPrice", source = "price")
     @Mapping(target = "productName", source = "name")
     @Mapping(target = "productDescription", source = "description")
+    @Mapping(target = "status", source = "status")
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "productQuantity", ignore = true)
     @Mapping(target = "orderItems", ignore = true)
