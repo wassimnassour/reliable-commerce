@@ -10,6 +10,7 @@ public record ProductResponse(
         BigDecimal price,
         Integer stockQuantity,
         Currency currency,
-        Long version
+        Long version,
+        Boolean status
 ) {
 }

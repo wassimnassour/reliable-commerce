@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ProductCreationTest {
     @Test
     void acceptsZeroStockAndDefaultsCurrencyToMad() {
-        var request = new CreateProductDto("Coffee", "Beans", 0, new BigDecimal("25.00"), null);
+        var request = new CreateProductDto("Coffee", "Beans", 0, new BigDecimal("25.00"), null, true);
         try (var factory = Validation.buildDefaultValidatorFactory()) {
             assertTrue(factory.getValidator().validate(request).isEmpty());
         }
@@ -25,7 +25,7 @@ class ProductCreationTest {
 
     @Test
     void rejectsBlankNameNegativeStockAndNonpositivePrice() {
-        var request = new CreateProductDto("  ", null, -1, BigDecimal.ZERO, null);
+        var request = new CreateProductDto("  ", null, -1, BigDecimal.ZERO, null, null);
         try (var factory = Validation.buildDefaultValidatorFactory()) {
             var fields = factory.getValidator().validate(request).stream()
                     .map(violation -> violation.getPropertyPath().toString())
@@ -37,7 +37,7 @@ class ProductCreationTest {
     @Test
     void mapsProductFieldsToResponse() {
         var mapper = Mappers.getMapper(ProductMapper.class);
-        var request = new CreateProductDto("Coffee", "Beans", 0, new BigDecimal("25.00"), null);
+        var request = new CreateProductDto("Coffee", "Beans", 0, new BigDecimal("25.00"), null, true);
         var product = mapper.toProduct(request);
         product.setId(42L);
         var response = mapper.toResponse(product);
@@ -47,5 +47,7 @@ class ProductCreationTest {
         assertEquals(new BigDecimal("25.00"), response.price());
         assertEquals(0, response.stockQuantity());
         assertEquals(Currency.MAD, response.currency());
+        assertEquals(true, product.getStatus());
+        assertEquals(true, response.status());
     }
 }

@@ -32,6 +32,7 @@ class ProductServiceTest {
         product.setProductDescription("Beans");
         product.setProductPrice(new BigDecimal("100.00"));
         product.setProductQuantity(1);
+        product.setStatus(true);
         Product saved = productRepository.saveAndFlush(product);
 
         var response = productService.getProductById(saved.getId());
@@ -41,6 +42,7 @@ class ProductServiceTest {
         assertEquals(new BigDecimal("100.00"), response.price());
         assertEquals(1, response.stockQuantity());
         assertEquals(Currency.MAD, response.currency());
+        assertEquals(true, response.status());
     }
 
     @Test

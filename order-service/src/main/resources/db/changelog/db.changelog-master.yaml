@@ -23,3 +23,6 @@ databaseChangeLog:
   - include:
       file: 008-initialize-product-version.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 009-add-status-to-product.yaml
+      relativeToChangelogFile: true

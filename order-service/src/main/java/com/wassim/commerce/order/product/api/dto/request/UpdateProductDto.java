@@ -11,6 +11,7 @@ public record UpdateProductDto(
         @Positive @Digits(integer = 17, fraction = 2) BigDecimal price,
         Currency currency,
         @NotNull
-        Long version
+        Long version,
+        Boolean status
 ) {
 }
