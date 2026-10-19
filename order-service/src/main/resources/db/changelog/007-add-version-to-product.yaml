@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-version-to-product.yaml
+      author: wassimnassour
+      changes:
+        - addColumn:
+            tableName: products
+            columns:
+              - column:
+                  name: version
+                  type: bigint

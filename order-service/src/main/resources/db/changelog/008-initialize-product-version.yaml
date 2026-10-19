@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-initialize-product-version
+      author: wassim
+      changes:
+        - update:
+            tableName: products
+            columns:
+              - column:
+                  name: version
+                  valueNumeric: 0
+            where: version IS NULL
+        - addDefaultValue:
+            tableName: products
+            columnName: version
+            columnDataType: bigint
+            defaultValueNumeric: 0
+        - addNotNullConstraint:
+            tableName: products
+            columnName: version
+            columnDataType: bigint
+      rollback:
+        - dropNotNullConstraint:
+            tableName: products
+            columnName: version
+            columnDataType: bigint
+        - dropDefaultValue:
+            tableName: products
+            columnName: version
+            columnDataType: bigint

@@ -37,6 +37,9 @@ public class Product {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    @Version
+    private Long version;
+
     @PrePersist
     private void prePersist() {
         Instant now = Instant.now();

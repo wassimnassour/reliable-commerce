@@ -138,3 +138,36 @@ docker compose -f infrastructure/docker-compose.yml down
 
 This setup creates the database only; application tables require migrations or a
 separate Hibernate schema-generation configuration.
+
+
+## Product listing
+
+`GET /api/products` accepts these optional query parameters:
+
+- `name`: case-insensitive name substring.
+- `minPrice`, `maxPrice`: inclusive decimal price bounds; nonnegative, with at most two decimal places. The minimum cannot exceed the maximum.
+- `page`: zero-based page index, default `0`.
+- `size`: `1`–`100`, default `20`.
+- `sortBy`: `id`, `name`, or `price`, optionally followed by `,asc` or `,desc`. Default: `id,asc`. Name and price sorting use ascending ID as a tie-breaker.
+
+For example:
+
+```text
+/api/products?name=coffee&minPrice=25.50&maxPrice=100.00&size=20&sortBy=price,asc
+```
+
+The response is a slice envelope rather than a bare array:
+
+```json
+{
+  "content": [],
+  "page": 0,
+  "size": 20,
+  "hasNext": false
+}
+```
+
+Products in `content` use the same fields as product details. No total count is calculated;
+`hasNext` indicates whether another page is available. Invalid filter parameters return `400`.
+The previous `productName`, `greaterThan`, and `lessThen` query parameters are replaced by
+`name`, `minPrice`, and `maxPrice`.

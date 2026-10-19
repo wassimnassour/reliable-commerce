@@ -3,14 +3,17 @@ package com.wassim.commerce.order.product.service.impl;
 
 import com.wassim.commerce.order.exaptions.BadRequest;
 import com.wassim.commerce.order.exaptions.NotFoundException;
+import com.wassim.commerce.order.exaptions.ProductVersionConflictException;
 import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
 import com.wassim.commerce.order.product.api.dto.request.ProductFilter;
+import com.wassim.commerce.order.product.api.dto.request.UpdateProductDto;
 import com.wassim.commerce.order.product.api.dto.response.ProductResponse;
 import com.wassim.commerce.order.product.domain.Product;
 import com.wassim.commerce.order.product.mapper.ProductMapper;
 import com.wassim.commerce.order.product.persistence.ProductRepository;
 import com.wassim.commerce.order.product.persistence.specification.ProductSpecification;
 import com.wassim.commerce.order.product.service.ProductService;
+import jakarta.transaction.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -18,6 +21,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import com.wassim.commerce.order.product.api.dto.response.ProductSliceResponse;
+
+import java.util.Objects;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -78,5 +83,26 @@ public class ProductServiceImpl implements ProductService {
         var slice = productRepository.findBy(specification, query -> query.slice(pageRequest));
         return new ProductSliceResponse(slice.getContent().stream().map(productMapper::toResponse).toList(),
                 slice.getNumber(), slice.getSize(), slice.hasNext());
+    }
+
+    @Override
+    @Transactional
+    public  ProductResponse updateProduct(Long id , UpdateProductDto updateProductDto){
+        if (updateProductDto.name() != null && updateProductDto.name().isBlank()) {
+            throw new BadRequest("Product name cannot be blank");
+        }
+
+        Product product =  productRepository.findById(id).orElseThrow(
+                ()-> new NotFoundException("Can't find product with id " + id)
+        );
+
+        if (!Objects.equals(product.getVersion(), updateProductDto.version())) {
+            throw new ProductVersionConflictException();
+        }
+
+        productMapper.updateProduct(product, updateProductDto);
+        productRepository.flush();
+
+        return productMapper.toResponse(product);
     }
 }

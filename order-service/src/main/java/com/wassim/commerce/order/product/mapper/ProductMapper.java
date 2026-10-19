@@ -1,10 +1,10 @@
 package com.wassim.commerce.order.product.mapper;
 
 import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
+import com.wassim.commerce.order.product.api.dto.request.UpdateProductDto;
 import com.wassim.commerce.order.product.api.dto.response.ProductResponse;
 import com.wassim.commerce.order.product.domain.Product;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
+import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
 public interface ProductMapper {
@@ -17,6 +17,7 @@ public interface ProductMapper {
     @Mapping(target = "orderItems", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "version", ignore = true)
     Product toProduct(CreateProductDto productDto);
 
     @Mapping(target = "name", source = "productName")
@@ -28,4 +29,16 @@ public interface ProductMapper {
 
 
 
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "productPrice", source = "price")
+    @Mapping(target = "productName", source = "name")
+    @Mapping(target = "productDescription", source = "description")
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "productQuantity", ignore = true)
+    @Mapping(target = "orderItems", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    void updateProduct(@MappingTarget Product product, UpdateProductDto updateProductDto);
 }
