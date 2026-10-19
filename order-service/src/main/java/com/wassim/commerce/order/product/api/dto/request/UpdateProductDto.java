@@ -9,6 +9,8 @@ public record UpdateProductDto(
         @Size(max = 255) String name,
         @Size(max = 255) String description,
         @Positive @Digits(integer = 17, fraction = 2) BigDecimal price,
-        Currency currency
+        Currency currency,
+        @NotNull
+        Long version
 ) {
 }

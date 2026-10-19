@@ -282,10 +282,12 @@ class ProductEndpointTests {
     @Test
     void updatesPriceAndDescription() throws Exception {
         Product product = saveProduct("Original", "25.10");
-        var response = patch(product.getId(), "{\"price\":78983,\"description\":\"Hello\"}");
+        var response = patch(product.getId(), "{\"price\":78983,\"description\":\"Hello\",\"version\":" + product.getVersion() + "}");
         assertEquals(200, response.statusCode());
 
         Product saved = repository.findById(product.getId()).orElseThrow();
+        assertEquals(product.getVersion() + 1, saved.getVersion().longValue());
+        assertEquals(saved.getVersion().longValue(), json.readTree(response.body()).get("version").asLong());
         assertEquals(new BigDecimal("78983.00"), saved.getProductPrice());
         assertEquals("Hello", saved.getProductDescription());
         assertEquals("Original", saved.getProductName());
@@ -296,16 +298,32 @@ class ProductEndpointTests {
     @Test
     void rejectsInvalidUpdate() throws Exception {
         Product product = saveProduct("Original", "25.10");
-        assertEquals(400, patch(product.getId(), "{\"price\":-1}").statusCode());
-        assertEquals(400, patch(product.getId(), "{\"name\":\"   \"}").statusCode());
+        assertEquals(400, patch(product.getId(), "{\"price\":-1,\"version\":" + product.getVersion() + "}").statusCode());
+        assertEquals(400, patch(product.getId(), "{\"name\":\"   \",\"version\":" + product.getVersion() + "}").statusCode());
+        assertEquals(400, patch(product.getId(), "{\"price\":30}").statusCode());
         Product saved = repository.findById(product.getId()).orElseThrow();
+        assertEquals(product.getVersion(), saved.getVersion());
         assertEquals(new BigDecimal("25.10"), saved.getProductPrice());
         assertEquals("Original", saved.getProductName());
     }
 
     @Test
     void updateMissingProductReturns404() throws Exception {
-        assertEquals(404, patch(Long.MAX_VALUE, "{\"description\":\"Hello\"}").statusCode());
+        assertEquals(404, patch(Long.MAX_VALUE, "{\"description\":\"Hello\",\"version\":0}").statusCode());
+    }
+
+    @Test
+    void rejectsOldVersionWithoutChangingProduct() throws Exception {
+        Product product = saveProduct("Original", "25.10");
+        Long oldVersion = product.getVersion();
+        assertEquals(200, patch(product.getId(), "{\"price\":30,\"version\":" + oldVersion + "}").statusCode());
+
+        var response = patch(product.getId(), "{\"price\":40,\"version\":" + oldVersion + "}");
+        assertEquals(409, response.statusCode());
+        Product saved = repository.findById(product.getId()).orElseThrow();
+        assertEquals(new BigDecimal("30.00"), saved.getProductPrice());
+        assertEquals("Original", saved.getProductName());
+        assertEquals(oldVersion + 1, saved.getVersion().longValue());
     }
 
     private HttpResponse<String> patch(long id, String body) throws Exception {

@@ -3,6 +3,7 @@ package com.wassim.commerce.order.product.service.impl;
 
 import com.wassim.commerce.order.exaptions.BadRequest;
 import com.wassim.commerce.order.exaptions.NotFoundException;
+import com.wassim.commerce.order.exaptions.ProductVersionConflictException;
 import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
 import com.wassim.commerce.order.product.api.dto.request.ProductFilter;
 import com.wassim.commerce.order.product.api.dto.request.UpdateProductDto;
@@ -20,6 +21,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import com.wassim.commerce.order.product.api.dto.response.ProductSliceResponse;
+
+import java.util.Objects;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -93,7 +96,13 @@ public class ProductServiceImpl implements ProductService {
                 ()-> new NotFoundException("Can't find product with id " + id)
         );
 
+        if (!Objects.equals(product.getVersion(), updateProductDto.version())) {
+            throw new ProductVersionConflictException();
+        }
+
         productMapper.updateProduct(product, updateProductDto);
+        productRepository.flush();
+
         return productMapper.toResponse(product);
     }
 }
