@@ -1,6 +1,7 @@
 package com.wassim.commerce.order.product.api;
 
 import com.wassim.commerce.order.product.api.dto.request.ProductFilter;
+import com.wassim.commerce.order.product.api.dto.request.UpdateProductDto;
 import com.wassim.commerce.order.product.api.dto.response.ProductResponse;
 import com.wassim.commerce.order.product.service.ProductService;
 import jakarta.validation.Valid;
@@ -23,11 +24,16 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
+    @PatchMapping("/{id}")
+    public ResponseEntity<ProductResponse> updateMethod(@Valid @RequestBody UpdateProductDto updateProductDto, @PathVariable Long id) {
+        ProductResponse productResponse = productService.updateProduct(id, updateProductDto);
+        return ResponseEntity.ok(productResponse);
+    }
+
     @GetMapping
     public ResponseEntity<ProductSliceResponse> getAllProducts(
             @Valid @ModelAttribute ProductFilter productFilter
     ) {
-
         ProductSliceResponse products =productService.getAllProducts(productFilter);
         return ResponseEntity.ok(products);
     }

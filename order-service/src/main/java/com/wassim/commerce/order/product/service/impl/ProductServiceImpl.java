@@ -5,12 +5,14 @@ import com.wassim.commerce.order.exaptions.BadRequest;
 import com.wassim.commerce.order.exaptions.NotFoundException;
 import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
 import com.wassim.commerce.order.product.api.dto.request.ProductFilter;
+import com.wassim.commerce.order.product.api.dto.request.UpdateProductDto;
 import com.wassim.commerce.order.product.api.dto.response.ProductResponse;
 import com.wassim.commerce.order.product.domain.Product;
 import com.wassim.commerce.order.product.mapper.ProductMapper;
 import com.wassim.commerce.order.product.persistence.ProductRepository;
 import com.wassim.commerce.order.product.persistence.specification.ProductSpecification;
 import com.wassim.commerce.order.product.service.ProductService;
+import jakarta.transaction.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -78,5 +80,20 @@ public class ProductServiceImpl implements ProductService {
         var slice = productRepository.findBy(specification, query -> query.slice(pageRequest));
         return new ProductSliceResponse(slice.getContent().stream().map(productMapper::toResponse).toList(),
                 slice.getNumber(), slice.getSize(), slice.hasNext());
+    }
+
+    @Override
+    @Transactional
+    public  ProductResponse updateProduct(Long id , UpdateProductDto updateProductDto){
+        if (updateProductDto.name() != null && updateProductDto.name().isBlank()) {
+            throw new BadRequest("Product name cannot be blank");
+        }
+
+        Product product =  productRepository.findById(id).orElseThrow(
+                ()-> new NotFoundException("Can't find product with id " + id)
+        );
+
+        productMapper.updateProduct(product, updateProductDto);
+        return productMapper.toResponse(product);
     }
 }

@@ -179,43 +179,141 @@ class ProductEndpointTests {
 
 
     @Test
-    void filtersPricesBeforeApplyingPageSize() throws Exception {
-        saveProduct("product-1", "133.00");
-        Product cheap = saveProduct("Coffee", "2.00");
-        saveProduct("Boundary", "3.00");
+    void combinesNameWithInclusiveDecimalPriceBoundaries() throws Exception {
+        saveProduct("Coffee below", "25.49");
+        Product lower = saveProduct("Coffee lower", "25.50");
+        Product upper = saveProduct("Coffee upper", "26.75");
+        saveProduct("Coffee above", "26.76");
+        saveProduct("Tea", "25.50");
 
-        var all = get("/api/products");
-        assertEquals(200, all.statusCode(), all.body());
-        assertEquals(3, json.readTree(all.body()).size());
+        var response = get("/api/products?name=COFFEE&minPrice=25.50&maxPrice=26.75&size=1");
+        assertEquals(200, response.statusCode(), response.body());
+        var first = json.readTree(response.body());
+        assertEquals(lower.getId().longValue(), first.get("content").get(0).get("id").asLong());
+        assertTrue(first.get("hasNext").asBoolean());
 
-        var filtered = get("/api/products?size=1&lessThen=3");
-        assertEquals(200, filtered.statusCode(), filtered.body());
-        var body = json.readTree(filtered.body());
-        assertEquals(1, body.size());
-        assertEquals(cheap.getId().longValue(), body.get(0).get("id").asLong());
-        assertEquals("Coffee", body.get(0).get("name").asText());
+        var second = get("/api/products?name=COFFEE&minPrice=25.50&maxPrice=26.75&size=1&page=1");
+        assertEquals(200, second.statusCode(), second.body());
+        var last = json.readTree(second.body());
+        assertEquals(upper.getId().longValue(), last.get("content").get(0).get("id").asLong());
+        assertFalse(last.get("hasNext").asBoolean());
 
-        var empty = get("/api/products?size=1&lessThen=2");
-        assertEquals(200, empty.statusCode(), empty.body());
-        assertEquals(0, json.readTree(empty.body()).size());
+        var equal = get("/api/products?name=coffee&minPrice=25.50&maxPrice=25.50");
+        assertEquals(200, equal.statusCode(), equal.body());
+        var content = json.readTree(equal.body()).get("content");
+        assertEquals(1, content.size());
+        assertEquals(lower.getId().longValue(), content.get(0).get("id").asLong());
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidFilterParameters")
+    void invalidFilterReturns400(String parameters) throws Exception {
+        var response = get("/api/products?" + parameters);
+        assertEquals(400, response.statusCode(), response.body());
+    }
+
+    static Stream<String> invalidFilterParameters() {
+        return Stream.of("page=-1", "size=0", "size=-1", "size=101", "page=abc", "size=1.5",
+                "minPrice=-0.01", "maxPrice=-1", "minPrice=3&maxPrice=2", "minPrice=abc",
+                "minPrice=1.001", "sortBy=unknown", "sortBy=price,up", "sortBy=productPrice",
+                "sortBy=", "sortBy=id,asc,desc");
     }
 
     @Test
-    void combinesNameAndPriceFiltersAndAppliesPagination() throws Exception {
-        saveProduct("Coffee cheap", "1.00");
-        Product match = saveProduct("Coffee regular", "2.00");
-        saveProduct("Tea", "2.00");
-        saveProduct("Coffee expensive", "4.00");
-
-        var response = get("/api/products?productName=COFFEE&greaterThan=1&lessThen=3&size=1");
+    void defaultsToTwentySortedById() throws Exception {
+        var expected = new java.util.ArrayList<Long>();
+        for (int i = 0; i < 21; i++) {
+            expected.add(saveProduct("Product " + i, "1.00").getId());
+        }
+        var response = get("/api/products");
         assertEquals(200, response.statusCode(), response.body());
         var body = json.readTree(response.body());
-        assertEquals(1, body.size());
-        assertEquals(match.getId().longValue(), body.get(0).get("id").asLong());
+        assertEquals(0, body.get("page").asInt());
+        assertEquals(20, body.get("size").asInt());
+        assertEquals(20, body.get("content").size());
+        assertTrue(body.get("hasNext").asBoolean());
+        for (int i = 0; i < 20; i++) {
+            assertEquals(expected.get(i).longValue(), body.get("content").get(i).get("id").asLong());
+        }
+        assertFalse(body.has("totalElements"));
+        var last = get("/api/products?page=1");
+        assertEquals(200, last.statusCode(), last.body());
+        var lastBody = json.readTree(last.body());
+        assertEquals(1, lastBody.get("content").size());
+        assertEquals(expected.get(20).longValue(), lastBody.get("content").get(0).get("id").asLong());
+        assertFalse(lastBody.get("hasNext").asBoolean());
 
-        var secondPage = get("/api/products?productName=COFFEE&greaterThan=1&lessThen=3&size=1&page=1");
-        assertEquals(200, secondPage.statusCode(), secondPage.body());
-        assertEquals(0, json.readTree(secondPage.body()).size());
+        var maximum = get("/api/products?size=100");
+        assertEquals(200, maximum.statusCode(), maximum.body());
+        assertEquals(21, json.readTree(maximum.body()).get("content").size());
+    }
+
+    @ParameterizedTest
+    @MethodSource("sortCases")
+    void sortsAcrossPopulatedPagesWithIdTieBreaker(String sortBy, String order) throws Exception {
+        Product a = saveProduct("B", "20.00");
+        Product b = saveProduct("A", "10.00");
+        Product c = saveProduct("B", "20.00");
+        Product d = saveProduct("A", "10.00");
+        var ids = java.util.List.of(a.getId(), b.getId(), c.getId(), d.getId());
+        for (int page = 0; page < 2; page++) {
+            var response = get("/api/products?size=2&page=" + page + "&sortBy=" + sortBy);
+            assertEquals(200, response.statusCode(), response.body());
+            var body = json.readTree(response.body());
+            assertEquals(2, body.get("content").size());
+            assertEquals(page == 0, body.get("hasNext").asBoolean());
+            for (int i = 0; i < 2; i++) {
+                int expectedIndex = order.charAt(page * 2 + i) - '0';
+                assertEquals(ids.get(expectedIndex).longValue(), body.get("content").get(i).get("id").asLong());
+            }
+        }
+    }
+
+    static Stream<org.junit.jupiter.params.provider.Arguments> sortCases() {
+        return Stream.of(
+                org.junit.jupiter.params.provider.Arguments.of("id,asc", "0123"),
+                org.junit.jupiter.params.provider.Arguments.of("id,desc", "3210"),
+                org.junit.jupiter.params.provider.Arguments.of("name,asc", "1302"),
+                org.junit.jupiter.params.provider.Arguments.of("name,desc", "0213"),
+                org.junit.jupiter.params.provider.Arguments.of("price,asc", "1302"),
+                org.junit.jupiter.params.provider.Arguments.of("price,desc", "0213"));
+    }
+
+    @Test
+    void updatesPriceAndDescription() throws Exception {
+        Product product = saveProduct("Original", "25.10");
+        var response = patch(product.getId(), "{\"price\":78983,\"description\":\"Hello\"}");
+        assertEquals(200, response.statusCode());
+
+        Product saved = repository.findById(product.getId()).orElseThrow();
+        assertEquals(new BigDecimal("78983.00"), saved.getProductPrice());
+        assertEquals("Hello", saved.getProductDescription());
+        assertEquals("Original", saved.getProductName());
+        assertEquals(7, saved.getProductQuantity());
+        assertEquals(Currency.MAD, saved.getCurrency());
+    }
+
+    @Test
+    void rejectsInvalidUpdate() throws Exception {
+        Product product = saveProduct("Original", "25.10");
+        assertEquals(400, patch(product.getId(), "{\"price\":-1}").statusCode());
+        assertEquals(400, patch(product.getId(), "{\"name\":\"   \"}").statusCode());
+        Product saved = repository.findById(product.getId()).orElseThrow();
+        assertEquals(new BigDecimal("25.10"), saved.getProductPrice());
+        assertEquals("Original", saved.getProductName());
+    }
+
+    @Test
+    void updateMissingProductReturns404() throws Exception {
+        assertEquals(404, patch(Long.MAX_VALUE, "{\"description\":\"Hello\"}").statusCode());
+    }
+
+    private HttpResponse<String> patch(long id, String body) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/products/" + id))
+                .header("Content-Type", "application/json")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private Product saveProduct(String name, String price) {

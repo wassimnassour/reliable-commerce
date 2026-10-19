@@ -17,3 +17,9 @@ databaseChangeLog:
   - include:
       file: 006-product-price-decimal.yaml
       relativeToChangelogFile: true
+  - include:
+      file : 007-add-version-to-product.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 008-initialize-product-version.yaml
+      relativeToChangelogFile: true
