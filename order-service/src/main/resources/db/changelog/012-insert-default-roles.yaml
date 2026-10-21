@@ -1,0 +1,173 @@
+databaseChangeLog:
+  - changeSet:
+      author: wassimnassour
+      id: insert-default-roles
+      changes:
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: name
+                  value: ADMIN
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 2
+              - column:
+                  name: name
+                  value: MANAGER
+        - insert:
+            tableName: roles
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 3
+              - column:
+                  name: name
+                  value: USER
+
+  - changeSet:
+      author: wassimnassour
+      id: insert-default-permissions
+      changes:
+        - insert:
+            tableName: permission
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: name
+                  value: TASK_READ
+        - insert:
+            tableName: permission
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 2
+              - column:
+                  name: name
+                  value: TASK_CREATE
+        - insert:
+            tableName: permission
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 3
+              - column:
+                  name: name
+                  value: TASK_UPDATE
+        - insert:
+            tableName: permission
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 4
+              - column:
+                  name: name
+                  value: TASK_DELETE
+        - insert:
+            tableName: permission
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 5
+              - column:
+                  name: name
+                  value: USER_MANAGE
+
+  - changeSet:
+      author: wassimnassour
+      id: insert-default-role-permissions
+      changes:
+        # --- ADMIN Role (id: 1) gets all permissions (1 to 5) ---
+        - insert:
+            tableName: roles_permission
+            columns:
+              - column:
+                  name: role_id
+                  valueNumeric: 1
+              - column:
+                  name: permission_id
+                  valueNumeric: 1
+        - insert:
+            tableName: roles_permission
+            columns:
+              - column:
+                  name: role_id
+                  valueNumeric: 1
+              - column:
+                  name: permission_id
+                  valueNumeric: 2
+        - insert:
+            tableName: roles_permission
+            columns:
+              - column:
+                  name: role_id
+                  valueNumeric: 1
+              - column:
+                  name: permission_id
+                  valueNumeric: 3
+        - insert:
+            tableName: roles_permission
+            columns:
+              - column:
+                  name: role_id
+                  valueNumeric: 1
+              - column:
+                  name: permission_id
+                  valueNumeric: 4
+        - insert:
+            tableName: roles_permission
+            columns:
+              - column:
+                  name: role_id
+                  valueNumeric: 1
+              - column:
+                  name: permission_id
+                  valueNumeric: 5
+
+        # --- MANAGER Role (id: 2) gets task read, create, update (1, 2, 3) ---
+        - insert:
+            tableName: roles_permission
+            columns:
+              - column:
+                  name: role_id
+                  valueNumeric: 2
+              - column:
+                  name: permission_id
+                  valueNumeric: 1
+        - insert:
+            tableName: roles_permission
+            columns:
+              - column:
+                  name: role_id
+                  valueNumeric: 2
+              - column:
+                  name: permission_id
+                  valueNumeric: 2
+        - insert:
+            tableName: roles_permission
+            columns:
+              - column:
+                  name: role_id
+                  valueNumeric: 2
+              - column:
+                  name: permission_id
+                  valueNumeric: 3
+
+        # --- USER Role (id: 3) gets task read only (1) ---
+        - insert:
+            tableName: roles_permission
+            columns:
+              - column:
+                  name: role_id
+                  valueNumeric: 3
+              - column:
+                  name: permission_id
+                  valueNumeric: 1

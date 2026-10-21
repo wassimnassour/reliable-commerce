@@ -5,11 +5,11 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 @Data
 @Entity
@@ -20,7 +20,6 @@ public class User implements UserDetails {
     private Long id;
 
     private String username;
-
 
     private String email;
 
@@ -34,6 +33,13 @@ public class User implements UserDetails {
 
     @Column(nullable = false)
     private Instant updatedAt;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "permission_id"))
+    private List<Role> roles;
+
+
+
 
     @PrePersist
     private void prePersist() {
@@ -51,7 +57,14 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
+        HashSet<SimpleGrantedAuthority> authorities = new HashSet<>();
+        roles.forEach(role ->{
+            authorities.add(new SimpleGrantedAuthority("ROLE_"+role.getName()));
+            role.getPermissions().forEach(permission -> authorities.add(new SimpleGrantedAuthority(permission.getName())));
+        } );
+
+
+        return authorities;
     }
 
     @Override
