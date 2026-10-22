@@ -3,6 +3,7 @@ package com.wassim.commerce.order.config;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import com.wassim.commerce.order.user.domain.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -30,18 +31,27 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
-    public String generateAccessToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails, jwtProperties.accessTokenExpirationMs());
+
+    public String generateAccessToken(User userDetails) {
+        return generateToken(
+                Map.of("token_use", "access"),
+                userDetails,
+                jwtProperties.accessTokenExpirationMs()
+        );
     }
 
-    public String generateRefreshToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails, jwtProperties.refreshTokenExpirationMs());
+    public String generateRefreshToken(User userDetails) {
+        return generateToken(
+                Map.of("token_use", "refresh"),
+                userDetails,
+                jwtProperties.refreshTokenExpirationMs()
+        );
     }
 
-    private String generateToken(Map<String, Object> extraClaims, UserDetails userDetails, long expiration) {
+    private String generateToken(Map<String, Object> extraClaims, User userDetails, long expiration) {
         return Jwts.builder()
                 .claims(extraClaims)
-                .subject(userDetails.getUsername())
+                .subject(userDetails.getId().toString())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignInKey(), Jwts.SIG.HS256)

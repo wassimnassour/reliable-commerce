@@ -50,6 +50,7 @@ public class AuthService {
             authentication.isAuthenticated();
 
             User uuser = (User) authentication.getPrincipal();
+
             String token= jwtService.generateAccessToken(uuser);
             String refreshToken= jwtService.generateRefreshToken(uuser);
 
