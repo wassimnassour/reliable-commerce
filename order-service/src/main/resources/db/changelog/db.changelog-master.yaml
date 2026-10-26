@@ -26,3 +26,10 @@ databaseChangeLog:
   - include:
       file: 009-add-status-to-product.yaml
       relativeToChangelogFile: true
+  - include:
+      file: db/changelog/010-add-missing-password-coumn.yaml
+  - include:
+      file: 011-create-roles-and-permissions.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: db/changelog/012-insert-default-roles.yaml

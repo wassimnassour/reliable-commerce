@@ -1,5 +1,6 @@
 package com.wassim.commerce.order.order.domain;
 
+import com.wassim.commerce.order.user.domain.User;
 import jakarta.persistence.*;
 import lombok.Data;
 
