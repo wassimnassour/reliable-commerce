@@ -51,4 +51,5 @@ public interface AuthServiceMapper {
         ).map(Permission::getName).toList();
     }
 
+
 }

@@ -125,7 +125,18 @@ Start PostgreSQL with Docker Desktop running:
 docker compose -f infrastructure/docker-compose.yml up -d --wait
 ```
 
-Then run `OrderServiceApplication` from IntelliJ. The application connects to
+Run with the `local` profile:
+
+```sh
+./mvnw -f order-service/pom.xml spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+In IntelliJ, set **Active profiles** to `local` in the `OrderServiceApplication`
+run configuration (or set `SPRING_PROFILES_ACTIVE=local`). This profile supplies a
+public JWT key for local testing, so no secret setup is needed. Request validation
+and authentication remain enabled. Use this profile only for local testing.
+
+The application connects to
 `jdbc:postgresql://localhost:5432/order_db` with username `order_user` and password
 `order_password`. These credentials are for local development. Override the application
 connection with `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` when needed.
@@ -139,6 +150,42 @@ docker compose -f infrastructure/docker-compose.yml down
 This setup creates the database only; application tables require migrations or a
 separate Hibernate schema-generation configuration.
 
+
+## Authentication configuration
+
+Set `JWT_SECRET` to a newly generated Base64-encoded random key of at least
+32 bytes when running without the `local` profile. Only `local` supplies a public
+test-key fallback; `JWT_SECRET` overrides it. The old committed key must not be reused.
+For local development, `.env.jwt` is ignored by Git. If it already exists, load it:
+
+```sh
+source .env.jwt
+./mvnw -f order-service/pom.xml spring-boot:run
+```
+
+To create that file for a new checkout, run once:
+
+```sh
+(umask 077; printf 'export JWT_SECRET=%s\n' "$(openssl rand -base64 32)" > .env.jwt)
+```
+
+Spring Boot does not automatically load this file. For IntelliJ, supply
+`JWT_SECRET` in the run configuration's environment variables. In deployment,
+generate a fresh key in your secret manager and restart every instance with it.
+This invalidates all access and refresh tokens signed with the previous key;
+users must log in again. Never commit the generated key.
+
+Migration 010 supports existing users without assigning a shared password.
+Accounts that predate the password column receive `!`, a non-loginable marker.
+Provision a BCrypt hash through a trusted, identity-verified recovery process
+before those accounts can log in. A self-service reset endpoint is not implemented.
+The password column remains `NOT NULL`, with no default for new rows. Databases
+that already applied migration 010 retain their existing credentials.
+
+Registration requires a valid email and a nonblank password
+of 12–72 Java characters and at most 72 UTF-8 bytes (BCrypt's input limit).
+Login checks a nonblank, valid email, a nonblank password, and the same maximum byte length without applying
+the new minimum to existing passwords.
 
 ## Product listing
 

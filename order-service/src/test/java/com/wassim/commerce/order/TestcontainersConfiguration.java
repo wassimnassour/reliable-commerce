@@ -9,6 +9,14 @@ import org.testcontainers.utility.DockerImageName;
 @TestConfiguration(proxyBeanMethods = false)
 public class TestcontainersConfiguration {
 
+    @Bean
+    org.springframework.test.context.DynamicPropertyRegistrar jwtTestProperties() {
+        byte[] key = new byte[32];
+        new java.security.SecureRandom().nextBytes(key);
+        String secret = java.util.Base64.getEncoder().encodeToString(key);
+        return registry -> registry.add("jwt.secret", () -> secret);
+    }
+
 	@Bean
 	@ServiceConnection
 	PostgreSQLContainer postgresContainer() {

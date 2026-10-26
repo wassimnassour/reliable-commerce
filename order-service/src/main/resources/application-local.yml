@@ -1,0 +1,5 @@
+# Local testing only. Activate explicitly with SPRING_PROFILES_ACTIVE=local.
+# The datasource defaults in application.yml match infrastructure/docker-compose.yml.
+jwt:
+  # Public development key; override with JWT_SECRET when needed.
+  secret: ${JWT_SECRET:bG9jYWwtdGVzdGluZy1vbmx5LWp3dC1rZXktMzJieXRlcw==}
