@@ -218,3 +218,13 @@ Products in `content` use the same fields as product details. No total count is 
 `hasNext` indicates whether another page is available. Invalid filter parameters return `400`.
 The previous `productName`, `greaterThan`, and `lessThen` query parameters are replaced by
 `name`, `minPrice`, and `maxPrice`.
+
+### Refresh-token sessions
+
+A successful login invalidates all previous refresh tokens for that account and
+issues a new pair. Failed logins leave existing sessions intact. Refresh rotates
+the supplied active, unexpired token; logout revokes the supplied refresh token.
+Existing access tokens remain valid until their expiry (15 minutes by default).
+Refresh tokens have unique IDs, are stored as SHA-256 hashes, and use the JWT
+expiration as their database expiry. Login, refresh, and logout acquire an account
+row lock to serialize session changes.

@@ -1,6 +1,7 @@
 package com.wassim.commerce.order.auth;
 
 import com.wassim.commerce.order.auth.dto.request.LoginRequestDto;
+import com.wassim.commerce.order.auth.dto.request.RefreshTokenRequestDto;
 import com.wassim.commerce.order.auth.dto.request.RegisterRequestDto;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -23,6 +24,13 @@ class CredentialValidationTest {
         assertFalse(validator.validate(new RegisterRequestDto(" ", " ")).isEmpty());
         assertFalse(validator.validate(new RegisterRequestDto("long-password", "not-an-email")).isEmpty());
         assertFalse(validator.validate(new RegisterRequestDto("short", "alice@example.com")).isEmpty());
+    }
+
+    @Test
+    void rejectsMissingAndBlankRefreshTokens() {
+        assertFalse(validator.validate(new RefreshTokenRequestDto(null)).isEmpty());
+        assertFalse(validator.validate(new RefreshTokenRequestDto(" ")).isEmpty());
+        assertTrue(validator.validate(new RefreshTokenRequestDto("token")).isEmpty());
     }
 
     @Test

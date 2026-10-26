@@ -1,7 +1,6 @@
 package com.wassim.commerce.order.auth.dto.request;
 
-import jakarta.persistence.Entity;
+import jakarta.validation.constraints.NotBlank;
 
-
-public record RefreshTokenRequestDto(String refreshToken) {
+public record RefreshTokenRequestDto(@NotBlank String refreshToken) {
 }

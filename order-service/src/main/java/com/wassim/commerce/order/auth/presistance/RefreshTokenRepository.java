@@ -12,4 +12,10 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 
      @Query("SELECT rt FROM refresh_token rt WHERE rt.jti = :jti")
      Optional<RefreshToken> findByJti(@Param("jti") String jti);
+
+
+     @Query("SELECT rt.sub FROM refresh_token rt WHERE rt.jti = :jti")
+     Optional<String> findSubByJti(@Param("jti") String jti);
+
+     void deleteAllBySub(String sub);
 }

@@ -2,144 +2,152 @@ package com.wassim.commerce.order.auth.service;
 
 import com.wassim.commerce.order.auth.domain.RefreshToken;
 import com.wassim.commerce.order.auth.dto.request.LoginRequestDto;
+import com.wassim.commerce.order.auth.dto.request.LogoutRequestDto;
 import com.wassim.commerce.order.auth.dto.request.RefreshTokenRequestDto;
 import com.wassim.commerce.order.auth.dto.request.RegisterRequestDto;
 import com.wassim.commerce.order.auth.dto.response.AuthResponseDto;
 import com.wassim.commerce.order.auth.enums.RefreshTokenStatus;
 import com.wassim.commerce.order.auth.mapper.AuthServiceMapper;
 import com.wassim.commerce.order.auth.presistance.RefreshTokenRepository;
-import com.wassim.commerce.order.config.JwtProperties;
 import com.wassim.commerce.order.config.JwtService;
-import com.wassim.commerce.order.exaptions.BadRequest;
-import com.wassim.commerce.order.exaptions.CustomBadCredentialsException;
 import com.wassim.commerce.order.user.domain.Role;
 import com.wassim.commerce.order.user.domain.User;
 import com.wassim.commerce.order.user.presistance.RoleRepository;
 import com.wassim.commerce.order.user.presistance.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.HexFormat;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RequiredArgsConstructor
 @Service
 public class AuthService {
-    private final JwtService jwtService;
-    private final AuthenticationManager authenticationManager;
-    private  final AuthServiceMapper authServiceMapper;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final RoleRepository roleRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
+        private final JwtService jwtService;
+        private final AuthenticationManager authenticationManager;
+        private final AuthServiceMapper authServiceMapper;
+        private final UserRepository userRepository;
+        private final PasswordEncoder passwordEncoder;
+        private final RoleRepository roleRepository;
+        private final RefreshTokenRepository refreshTokenRepository;
 
+        @Transactional
+        public AuthResponseDto authenticate(LoginRequestDto loginRequestDto) throws NoSuchAlgorithmException {
+                Authentication authentication = authenticationManager.authenticate(
+                                new UsernamePasswordAuthenticationToken(loginRequestDto.email(),
+                                                loginRequestDto.password()));
+                authentication.isAuthenticated();
 
+                User principal = (User) authentication.getPrincipal();
+                User uuser = userRepository.findByEmailForUpdate(principal.getUsername())
+                                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
-    public AuthResponseDto authenticate(LoginRequestDto loginRequestDto) throws NoSuchAlgorithmException {
-            Authentication authentication= authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequestDto.email() , loginRequestDto.password())
-            );
-            authentication.isAuthenticated();
+                String token = jwtService.generateAccessToken(uuser);
+                String refreshToken = jwtService.generateRefreshToken(uuser);
 
-            User uuser = (User) authentication.getPrincipal();
+                refreshTokenRepository.deleteAllBySub(uuser.getUsername());
+                saveRefreshToken(uuser, refreshToken);
 
-            String token= jwtService.generateAccessToken(uuser);
-            String refreshToken= jwtService.generateRefreshToken(uuser);
+                return authServiceMapper.toAuthResponseDto(
+                                uuser,
+                                token,
+                                refreshToken);
+        }
 
-        saveRefreshToken(uuser ,refreshToken);
+        @Transactional
+        public AuthResponseDto register(RegisterRequestDto registerRequestDto) throws NoSuchAlgorithmException {
+                Role role = roleRepository.findByName("USER");
+                User user = new User();
 
+                authServiceMapper.createUserFromDto(
+                                user,
+                                registerRequestDto);
+                user.setPassword(passwordEncoder.encode(registerRequestDto.password()));
+                user.setRoles(List.of(role));
 
-        return authServiceMapper.toAuthResponseDto(
-                    uuser,
-                    token,
-                    refreshToken
-            );
-     }
+                userRepository.save(user);
 
-     @Transactional
-     public AuthResponseDto register(RegisterRequestDto  registerRequestDto) throws NoSuchAlgorithmException {
-         Role role = roleRepository.findByName("USER");
-        User user = new User();
+                String token = jwtService.generateAccessToken(user);
+                String refreshToken = jwtService.generateRefreshToken(user);
+                saveRefreshToken(user, refreshToken);
 
-         authServiceMapper.createUserFromDto(
-                 user ,
-                 registerRequestDto
-         );
-        user.setPassword(passwordEncoder.encode(registerRequestDto.password()));
-        user.setRoles(List.of(role));
+                return authServiceMapper.toAuthResponseDto(user, token, refreshToken);
+        }
 
-         userRepository.save(user);
+        @Transactional
+        public Map<String, String> updateRefreshToken(RefreshTokenRequestDto refreshTokenRequestDto,
+                        Authentication authentication) throws NoSuchAlgorithmException {
 
-         String token= jwtService.generateAccessToken(user);
-         String refreshToken =  jwtService.generateRefreshToken(user);
-         saveRefreshToken(user ,refreshToken);
+                String hashedToken = hashToken(refreshTokenRequestDto.refreshToken());
+                User user = lockRefreshTokenOwner(hashedToken);
+                RefreshToken refreshTokenResults = refreshTokenRepository.findByJti(hashedToken).orElseThrow(
+                                () -> new BadCredentialsException("Invalid refresh token"));
+                if (refreshTokenResults.getStatus() != RefreshTokenStatus.ACTIVE
+                                || !Instant.now().isBefore(refreshTokenResults.getExpiresAt())) {
+                        throw new BadCredentialsException("Invalid refresh token");
+                }
 
-         return  authServiceMapper.toAuthResponseDto(user , token , refreshToken);
-     }
+                refreshTokenRepository.deleteById(refreshTokenResults.getId());
 
+                String newRefreshToken = jwtService.generateRefreshToken((user));
+                String token = jwtService.generateAccessToken(user);
 
-     @Transactional
-     public Map<String , String> updateRefreshToken(RefreshTokenRequestDto refreshTokenRequestDto , Authentication authentication) throws NoSuchAlgorithmException {
+                saveRefreshToken(user, newRefreshToken);
 
+                return Map.of(
+                                "refreshToken", newRefreshToken,
+                                "token", token
 
-           String hashedToken =  hashToken(refreshTokenRequestDto.refreshToken());
-           RefreshToken refreshTokenResults = refreshTokenRepository.findByJti(hashedToken).orElseThrow(
-                   () -> new BadCredentialsException("Invalid refresh token")
-           );
-          User user = userRepository.findByEmail(refreshTokenResults.getSub()).orElseThrow(
-                  () -> new BadCredentialsException("Invalid refresh token")
-          );
+                );
+        }
 
-          refreshTokenRepository.deleteById(refreshTokenResults.getId());
+        @Transactional
+        public void logout(LogoutRequestDto logoutRequestDto) throws NoSuchAlgorithmException {
+                String hashedToken = hashToken(logoutRequestDto.refreshToken());
 
+                lockRefreshTokenOwner(hashedToken);
+                RefreshToken tokenEntity = refreshTokenRepository.findByJti(hashedToken)
+                                .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
 
-           String newRefreshToken =  jwtService.generateRefreshToken((user));
-           String token  =  jwtService.generateAccessToken(user);
+                tokenEntity.setStatus(RefreshTokenStatus.REVOKED);
+                refreshTokenRepository.save(tokenEntity);
 
-         saveRefreshToken(user, newRefreshToken);
+        }
 
-        return Map.of(
-               "refreshToken" ,newRefreshToken,
-                 "token", token
+        private User lockRefreshTokenOwner(String hashedToken) {
+                String email = refreshTokenRepository.findSubByJti(hashedToken)
+                                .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
+                return userRepository.findByEmailForUpdate(email)
+                                .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
+        }
 
-           );
-     }
+        private void saveRefreshToken(User user, String rawRefreshToken) throws NoSuchAlgorithmException {
+                String hashedToken = hashToken(rawRefreshToken);
 
-    private void saveRefreshToken(User user, String rawRefreshToken) throws NoSuchAlgorithmException {
-        String hashedToken = hashToken(rawRefreshToken);
+                RefreshToken tokenEntity = new RefreshToken();
+                tokenEntity.setJti(hashedToken);
+                tokenEntity.setSub(user.getUsername());
+                tokenEntity.setStatus(RefreshTokenStatus.ACTIVE);
 
-        RefreshToken tokenEntity = new RefreshToken();
-        tokenEntity.setJti(hashedToken);
-        tokenEntity.setSub(user.getUsername());
-        tokenEntity.setStatus(RefreshTokenStatus.ACTIVE);
+                tokenEntity.setExpiresAt(jwtService.extractExpiration(rawRefreshToken).toInstant());
+                refreshTokenRepository.save(tokenEntity);
+        }
 
-        tokenEntity.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
-        refreshTokenRepository.save(tokenEntity);
-    }
+        public String hashToken(String token) throws NoSuchAlgorithmException {
+                byte[] hash = MessageDigest
+                                .getInstance("SHA-256")
+                                .digest(token.getBytes(StandardCharsets.UTF_8));
 
-    public String hashToken(String token) throws NoSuchAlgorithmException {
-        byte[] hash = MessageDigest
-                .getInstance("SHA-256")
-                .digest(token.getBytes(StandardCharsets.UTF_8));
-
-        return HexFormat.of().formatHex(hash);
-    }
-
+                return HexFormat.of().formatHex(hash);
+        }
 
 }
