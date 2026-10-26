@@ -1,11 +1,13 @@
 package com.wassim.commerce.order.auth.dto.request;
 
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Size;
+import com.wassim.commerce.order.auth.validation.Utf8ByteLength;
 
 public record RegisterRequestDto(
-     @NotNull String username,
-     @NotNull       String password,
-     @NotNull   String email
+     @NotBlank @Size(min = 12, max = 72) @Utf8ByteLength(max = 72) String password,
+     @NotBlank @Email @Size(max = 255) String email
 ) {
 }

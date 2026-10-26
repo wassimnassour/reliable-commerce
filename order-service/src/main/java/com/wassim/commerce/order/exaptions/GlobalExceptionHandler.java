@@ -79,13 +79,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
-    @ExceptionHandler(BadCredentialsException.class)
+    @ExceptionHandler({
+            BadCredentialsException.class,
+            CustomBadCredentialsException.class
+    })
     public ResponseEntity<Map<String, Object>> handleBadCredentialsException(BadCredentialsException ex) {
         Map<String, Object> errorBody = new HashMap<>();
         errorBody.put("timestamp", LocalDateTime.now());
         errorBody.put("status", HttpStatus.UNAUTHORIZED.value());
         errorBody.put("error", "Unauthorized");
-        errorBody.put("message", "Invalid username or password");
+        errorBody.put("message", !ex.getMessage().isEmpty() ? ex.getMessage():  "Invalid username or password");
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorBody);
     }

@@ -33,3 +33,7 @@ databaseChangeLog:
       relativeToChangelogFile: true
   - include:
       file: db/changelog/012-insert-default-roles.yaml
+  - include:
+      file: db/changelog/013-create-refreshToken.yaml
+  - include:
+      file: db/changelog/014-add-status-to-refreshToken.yaml

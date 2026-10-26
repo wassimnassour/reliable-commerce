@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 014-add-status-to-refresh-token
+      author: wassimnassour
+      changes:
+        - addColumn:
+            tableName: refresh_token
+            columns:
+              - column:
+                  name: status
+                  type: varchar(50)
+                  defaultValue: ACTIVE # Crucial if the table already has data!
+                  constraints:
+                    nullable: false

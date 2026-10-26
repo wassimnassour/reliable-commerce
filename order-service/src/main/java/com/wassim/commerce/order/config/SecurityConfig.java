@@ -31,8 +31,7 @@ public class SecurityConfig {
              DatabaseJwtAuthenticationConverter authenticationConverter) throws Exception {
          http.csrf(crsf-> crsf.disable()).authorizeHttpRequests(
                  request->
-                          request.requestMatchers("/api/").permitAll()
-                                  .requestMatchers("/auth/**").permitAll()
+                          request.requestMatchers("/auth/**").permitAll()
                          .requestMatchers("/api/admin/**").hasRole("ADMIN")
                                   .anyRequest().authenticated()
          )   .sessionManagement(session -> session
