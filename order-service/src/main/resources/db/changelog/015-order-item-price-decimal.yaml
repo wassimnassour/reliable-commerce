@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 015-order-item-price-decimal
+      author: wassim
+      changes:
+        - modifyDataType:
+            tableName: order_items
+            columnName: total_price
+            newDataType: numeric(19,2)

@@ -37,3 +37,12 @@ databaseChangeLog:
       file: db/changelog/013-create-refreshToken.yaml
   - include:
       file: db/changelog/014-add-status-to-refreshToken.yaml
+  - include:
+      file: 015-order-item-price-decimal.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 016-refresh-token-expiry-timezone.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 017-order-price-decimal.yaml
+      relativeToChangelogFile: true

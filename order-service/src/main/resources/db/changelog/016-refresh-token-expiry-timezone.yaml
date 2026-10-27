@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 016-refresh-token-expiry-timezone
+      author: wassim
+      dbms: postgresql
+      changes:
+        # Hibernate stores Instant values as UTC. Interpret existing timestamps
+        # explicitly as UTC rather than using the database session's time zone.
+        - sql:
+            sql: |
+              ALTER TABLE refresh_token
+              ALTER COLUMN expires_at TYPE timestamp with time zone
+              USING expires_at AT TIME ZONE 'UTC';
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE refresh_token
+              ALTER COLUMN expires_at TYPE timestamp without time zone
+              USING expires_at AT TIME ZONE 'UTC';

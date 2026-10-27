@@ -4,14 +4,18 @@ import com.wassim.commerce.order.order.domain.OrderItems;
 import com.wassim.commerce.order.enums.Currency;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 
 import java.time.Instant;
 import java.math.BigDecimal;
 
 import java.util.List;
 
-@Data
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "products")
 public class Product {

@@ -99,7 +99,7 @@ public class GlobalExceptionHandler {
         errorBody.put("timestamp", LocalDateTime.now());
         errorBody.put("status", HttpStatus.CONFLICT.value()); // 409 Conflict is best for duplicate keys/unique constraints
         errorBody.put("error", "Conflict");
-        errorBody.put("message", "A user with this email already exists.");
+        errorBody.put("message", ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody);
     }
