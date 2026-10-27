@@ -1,5 +1,7 @@
 package com.wassim.commerce.order.exaptions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,7 @@ import java.util.Map;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleRequestBodyInvalid( MethodArgumentNotValidException ex) {
@@ -95,11 +98,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        log.error("Database integrity violation", ex);
         Map<String, Object> errorBody = new HashMap<>();
         errorBody.put("timestamp", LocalDateTime.now());
         errorBody.put("status", HttpStatus.CONFLICT.value()); // 409 Conflict is best for duplicate keys/unique constraints
         errorBody.put("error", "Conflict");
-        errorBody.put("message", ex.getMessage());
+        errorBody.put("message", "The request conflicts with existing data.");
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody);
     }

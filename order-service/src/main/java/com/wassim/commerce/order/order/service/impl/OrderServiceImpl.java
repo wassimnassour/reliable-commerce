@@ -66,7 +66,7 @@ public class OrderServiceImpl implements OrderService {
 
 
             BigDecimal totalAmountOfOneProduct =  product.getProductPrice().multiply(BigDecimal.valueOf(pr.quantity()));
-            if(!product.getStatus()){
+            if(!Boolean.TRUE.equals(product.getStatus())){
                 throw new BadRequest("Product  is not available"+ pr.productId());
             }
 
