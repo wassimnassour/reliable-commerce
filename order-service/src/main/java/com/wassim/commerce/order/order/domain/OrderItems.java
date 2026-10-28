@@ -1,13 +1,17 @@
 package com.wassim.commerce.order.order.domain;
 
-import com.wassim.commerce.order.order.domain.Order;
 import com.wassim.commerce.order.product.domain.Product;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
-@Data
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "order_items")
 public class OrderItems {
@@ -15,8 +19,9 @@ public class OrderItems {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private Integer quantity;
-    private Integer discount;
-    private Double totalPrice;
+
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal totalPrice;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "product_id", nullable = false)

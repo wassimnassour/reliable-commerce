@@ -1,12 +1,15 @@
 package com.wassim.commerce.order.user.domain;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 import org.mapstruct.Named;
 
 import java.util.List;
 
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity(name = "roles")
 public class Role {
     @Id

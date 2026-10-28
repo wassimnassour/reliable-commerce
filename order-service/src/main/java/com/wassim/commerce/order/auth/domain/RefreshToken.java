@@ -2,11 +2,14 @@ package com.wassim.commerce.order.auth.domain;
 
 import com.wassim.commerce.order.auth.enums.RefreshTokenStatus;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 
 import java.time.Instant;
 
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity(name = "refresh_token")
 public class RefreshToken {
     @Id

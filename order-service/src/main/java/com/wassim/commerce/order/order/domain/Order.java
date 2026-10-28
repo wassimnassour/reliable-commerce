@@ -2,14 +2,18 @@ package com.wassim.commerce.order.order.domain;
 
 import com.wassim.commerce.order.user.domain.User;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
 import java.util.List;
 
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "orders")
 public class Order {
@@ -24,7 +28,8 @@ public class Order {
     @Column(nullable = false)
     private String orderStatus;
 
-    private Integer totalPrice;
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal totalPrice;
     private Integer totalQuantity;
 
     @OneToMany(mappedBy = "order")
