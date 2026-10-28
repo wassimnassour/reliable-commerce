@@ -10,7 +10,6 @@ import com.wassim.commerce.order.order.presisstance.OrderItemsRepository;
 import com.wassim.commerce.order.order.presisstance.OrderRepository;
 import com.wassim.commerce.order.order.records.OrderRequest;
 import com.wassim.commerce.order.order.service.OrderService;
-import com.wassim.commerce.order.product.api.dto.request.CreateProductDto;
 import com.wassim.commerce.order.product.domain.Product;
 import com.wassim.commerce.order.product.persistence.ProductRepository;
 import com.wassim.commerce.order.user.domain.User;
@@ -23,9 +22,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -74,9 +70,12 @@ public class OrderServiceImpl implements OrderService {
             if (pr.quantity() > product.getProductQuantity()) {
                 throw new BadRequest("Insufficient stock for this product" + pr.productId());
             }
-            product.setProductQuantity(
-                    product.getProductQuantity() - pr.quantity()
-            );
+
+            int affectedProductRows =  productRepository.decreaseTheStock(pr.quantity(), product.getId());
+            if (affectedProductRows != 1) {
+                throw new BadRequest("Insufficient stock for this product --- " + pr.productId());
+            }
+
             OrderItems orderItems = new OrderItems();
             orderItems.setProduct(product);
             orderItems.setQuantity(pr.quantity());
