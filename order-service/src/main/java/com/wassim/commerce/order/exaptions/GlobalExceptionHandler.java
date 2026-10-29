@@ -2,8 +2,10 @@ package com.wassim.commerce.order.exaptions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,16 +23,32 @@ import java.util.Map;
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler({org.springframework.dao.PessimisticLockingFailureException.class,
-            jakarta.persistence.LockTimeoutException.class, jakarta.persistence.PessimisticLockException.class})
-    public ResponseEntity<Map<String, Object>> handleLockTimeout(RuntimeException ex) {
-        log.warn("Order database lock could not be acquired", ex);
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .header("Retry-After", "1")
-                .body(Map.of("timestamp", LocalDateTime.now(),
-                        "status", HttpStatus.SERVICE_UNAVAILABLE.value(),
-                        "error", "Service Unavailable",
-                        "message", "The request is busy. Retry with the same idempotency key."));
+    @ExceptionHandler({DataAccessException.class, jakarta.persistence.LockTimeoutException.class,
+            jakarta.persistence.PessimisticLockException.class})
+    public ResponseEntity<Map<String, String>> handleDatabaseError(RuntimeException exception) {
+        if (isLockUnavailable(exception)) {
+            log.warn("Database lock could not be acquired");
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .header(HttpHeaders.RETRY_AFTER, "1")
+                    .body(Map.of("code", "DATABASE_BUSY",
+                            "message", "Please retry using the same idempotency key."));
+        }
+
+        log.error("Unexpected database failure", exception);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("code", "INTERNAL_ERROR",
+                        "message", "An unexpected error occurred."));
+    }
+
+    private boolean isLockUnavailable(Throwable exception) {
+        Throwable cause = exception;
+        while (cause != null) {
+            if (cause instanceof SQLException sqlException && "55P03".equals(sqlException.getSQLState())) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     @ExceptionHandler(IdempotencyConflictException.class)

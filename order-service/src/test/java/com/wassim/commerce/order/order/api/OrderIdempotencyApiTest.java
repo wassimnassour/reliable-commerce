@@ -64,13 +64,28 @@ class OrderIdempotencyApiTest {
     @Test
     void lockTimeoutReturnsRetryable503() throws Exception {
         when(service.createOrder(eq("locked-key"), eq(1L), any()))
-                .thenThrow(new org.springframework.dao.CannotAcquireLockException("internal SQL details"));
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("internal SQL details",
+                        new RuntimeException("Hibernate wrapper", new java.sql.SQLException("lock unavailable", "55P03"))));
         mvc.perform(post("/orders").header("Idempotency-Key", "locked-key")
                         .contentType("application/json").content(body))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(header().string("Retry-After", "1"))
+                .andExpect(jsonPath("$.code").value("DATABASE_BUSY"))
                 .andExpect(jsonPath("$.message").value(
-                        "The request is busy. Retry with the same idempotency key."));
+                        "Please retry using the same idempotency key."));
+    }
+
+    @Test
+    void otherDatabaseFailuresReturnSafe500() throws Exception {
+        when(service.createOrder(eq("failed-key"), eq(1L), any()))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("internal SQL details",
+                        new java.sql.SQLException("private database details", "08006")));
+        mvc.perform(post("/orders").header("Idempotency-Key", "failed-key")
+                        .contentType("application/json").content(body))
+                .andExpect(status().isInternalServerError())
+                .andExpect(header().doesNotExist("Retry-After"))
+                .andExpect(jsonPath("$.code").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value("An unexpected error occurred."));
     }
 
     @Test
