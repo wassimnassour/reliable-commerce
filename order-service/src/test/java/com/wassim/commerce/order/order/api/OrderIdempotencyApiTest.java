@@ -62,6 +62,18 @@ class OrderIdempotencyApiTest {
     }
 
     @Test
+    void lockTimeoutReturnsRetryable503() throws Exception {
+        when(service.createOrder(eq("locked-key"), eq(1L), any()))
+                .thenThrow(new org.springframework.dao.CannotAcquireLockException("internal SQL details"));
+        mvc.perform(post("/orders").header("Idempotency-Key", "locked-key")
+                        .contentType("application/json").content(body))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(header().string("Retry-After", "1"))
+                .andExpect(jsonPath("$.message").value(
+                        "The request is busy. Retry with the same idempotency key."));
+    }
+
+    @Test
     void changedPayloadReturns409() throws Exception {
         when(service.createOrder(eq("used-key"), eq(1L), any()))
                 .thenThrow(new IdempotencyConflictException());

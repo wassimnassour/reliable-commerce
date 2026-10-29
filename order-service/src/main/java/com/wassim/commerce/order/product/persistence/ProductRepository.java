@@ -16,7 +16,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
                            update products
                                set product_quantity= product_quantity- :quantity,
                                      version = version +1
-                               where id = :productId and :quantity < product_quantity and status = true
+                               where id = :productId and :quantity <= product_quantity and status = true
 
                         """, nativeQuery = true)
         int decreaseTheStock(

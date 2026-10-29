@@ -17,6 +17,7 @@ import com.wassim.commerce.order.product.domain.Product;
 import com.wassim.commerce.order.product.persistence.ProductRepository;
 import com.wassim.commerce.order.user.domain.User;
 import com.wassim.commerce.order.user.presistance.UserRepository;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -41,46 +42,45 @@ public class OrderServiceImpl implements OrderService {
     private final OrderIdempotencyRepository orderIdempotencyRepository;
     private final ObjectMapper objectMapper;
 
+    private final EntityManager entityManager;
+
     @Transactional
     public CreateOrderResponse createOrder(String orderIdempotencyKey, Long userId, CreateRequestDto createRequestDto) {
+        entityManager
+                .createNativeQuery("SET LOCAL lock_timeout = '3s'").executeUpdate();
 
-       String     payload = writeJson(createRequestDto);
+        String payload = writeJson(createRequestDto);
         int insertedIntoIdempotency = orderIdempotencyRepository.tryClaim(userId, orderIdempotencyKey, payload);
 
-
-
-        OrderIdempotency idempotency = orderIdempotencyRepository.findByIdempotencyKeyAndUserId(orderIdempotencyKey, userId);
-        if(insertedIntoIdempotency ==0) {
+        OrderIdempotency idempotency = orderIdempotencyRepository.findByIdempotencyKeyAndUserId(orderIdempotencyKey,
+                userId);
+        if (insertedIntoIdempotency == 0) {
             JsonNode savedPayload = readJson(idempotency.getPayload(), JsonNode.class);
             JsonNode currentPayload = readJson(payload, JsonNode.class);
 
-            if(!savedPayload.equals(currentPayload)) {
+            if (!savedPayload.equals(currentPayload)) {
                 throw new IdempotencyConflictException();
             }
 
-           if(idempotency.getResponse() ==null) {
-               throw new IllegalStateException(
-                       "Idempotency record has no saved response"
-               );
-           }
+            if (idempotency.getResponse() == null) {
+                throw new IllegalStateException(
+                        "Idempotency record has no saved response");
+            }
 
-           return readJson(idempotency.getResponse(), CreateOrderResponse.class);
+            return readJson(idempotency.getResponse(), CreateOrderResponse.class);
 
         }
 
         boolean hasDuplicates = createRequestDto.products().stream().collect(
-                Collectors.groupingBy(OrderRequest::productId, Collectors.counting())
-        ).values().stream().anyMatch(count -> count > 1);
-
+                Collectors.groupingBy(OrderRequest::productId, Collectors.counting())).values().stream()
+                .anyMatch(count -> count > 1);
 
         if (hasDuplicates) {
             throw new BadRequest("Duplicate product ids found");
         }
 
-
         User user = userRepository.findById(userId).orElseThrow(
-                () -> new BadRequest("User not found")
-        );
+                () -> new BadRequest("User not found"));
 
         List<OrderItems> orderItemsList = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -91,15 +91,13 @@ public class OrderServiceImpl implements OrderService {
         order.setUser(user);
 
         for (OrderRequest pr : createRequestDto.products()) {
-            Product product = productRepository.findById(pr.productId()).orElseThrow(() ->
-                    new BadRequest("Product with id " + pr.productId() + " is not found"));
-
+            Product product = productRepository.findById(pr.productId())
+                    .orElseThrow(() -> new BadRequest("Product with id " + pr.productId() + " is not found"));
 
             BigDecimal totalAmountOfOneProduct = product.getProductPrice().multiply(BigDecimal.valueOf(pr.quantity()));
             if (!Boolean.TRUE.equals(product.getStatus())) {
                 throw new BadRequest("Product  is not available" + pr.productId());
             }
-
 
             if (pr.quantity() > product.getProductQuantity()) {
                 throw new BadRequest("Insufficient stock for this product" + pr.productId());
@@ -120,7 +118,6 @@ public class OrderServiceImpl implements OrderService {
             totalQuantity = totalQuantity + pr.quantity();
         }
 
-
         order.setOrderDate(Instant.now());
         order.setTotalPrice(totalAmount);
         order.setTotalQuantity(totalQuantity);
@@ -130,8 +127,7 @@ public class OrderServiceImpl implements OrderService {
 
         orderItemsRepository.saveAll(orderItemsList);
 
-        CreateOrderResponse response =
-                orderMapper.toCreateOrderResponse(order);
+        CreateOrderResponse response = orderMapper.toCreateOrderResponse(order);
 
         idempotency.setResponse(writeJson(response));
         orderIdempotencyRepository.save(idempotency);
@@ -141,10 +137,10 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private String writeJson(Object value) {
-            return objectMapper.writeValueAsString(value);
+        return objectMapper.writeValueAsString(value);
     }
 
     private <T> T readJson(String json, Class<T> type) {
-            return objectMapper.readValue(json, type);
+        return objectMapper.readValue(json, type);
     }
 }

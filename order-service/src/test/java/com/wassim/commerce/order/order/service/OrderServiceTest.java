@@ -2,287 +2,227 @@ package com.wassim.commerce.order.order.service;
 
 import com.wassim.commerce.order.TestcontainersConfiguration;
 import com.wassim.commerce.order.exaptions.BadRequest;
-import com.wassim.commerce.order.fixtures.GenerateProducts;
-import com.wassim.commerce.order.fixtures.GenerateRoles;
-import com.wassim.commerce.order.fixtures.GenerateUser;
 import com.wassim.commerce.order.order.dto.request.CreateRequestDto;
-import com.wassim.commerce.order.order.dto.response.CreateOrderResponse;
-import com.wassim.commerce.order.order.presisstance.OrderRepository;
 import com.wassim.commerce.order.order.records.OrderRequest;
 import com.wassim.commerce.order.product.domain.Product;
 import com.wassim.commerce.order.product.persistence.ProductRepository;
-import com.wassim.commerce.order.user.domain.Role;
 import com.wassim.commerce.order.user.domain.User;
-import com.wassim.commerce.order.user.presistance.RoleRepository;
 import com.wassim.commerce.order.user.presistance.UserRepository;
-import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-
-import org.springframework.test.context.transaction.TestTransaction;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.UUID;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
-@Import(TestcontainersConfiguration.class)
+import static org.assertj.core.api.Assertions.*;
+
+// Deliberately no test transaction: each service invocation must commit or roll
+// back itself, including invocations made by concurrent checkout threads.
 @SpringBootTest
-public class OrderServiceTest {
+@Import(TestcontainersConfiguration.class)
+class OrderServiceTest {
+    @Autowired OrderService service;
+    @Autowired ProductRepository products;
+    @Autowired UserRepository users;
+    @Autowired JdbcTemplate jdbc;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
+    @Autowired com.wassim.commerce.order.order.presisstance.OrderIdempotencyRepository keys;
 
-        @Autowired
-        private OrderRepository orderRepository;
-        @Autowired
-        private ProductRepository productRepository;
+    Long userId;
+    final List<Long> productIds = new ArrayList<>();
 
-        @Autowired
-        RoleRepository roleRepository;
+    @BeforeEach
+    void createUser() {
+        User user = new User();
+        user.setEmail(UUID.randomUUID() + "@example.com");
+        user.setPassword("test-password-hash");
+        userId = users.saveAndFlush(user).getId();
+    }
 
-        @Autowired
-        private OrderService orderService;
-        @Autowired
-        UserRepository userRepository;
-        @Autowired
-        private TestcontainersConfiguration testcontainersConfiguration;
+    @AfterEach
+    void cleanOwnedFixtures() {
+        jdbc.update("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id = ?)", userId);
+        jdbc.update("DELETE FROM orders WHERE user_id = ?", userId);
+        for (Long id : productIds) jdbc.update("DELETE FROM products WHERE id = ?", id);
+        jdbc.update("DELETE FROM order_idempotency WHERE user_id = ?", userId);
+        jdbc.update("DELETE FROM users WHERE id = ?", userId);
+    }
 
-        @Autowired
-        private org.springframework.jdbc.core.JdbcTemplate jdbc;
+    Product product(int stock) {
+        Product product = new Product();
+        product.setProductName("Stock test product");
+        product.setProductPrice(new BigDecimal("19.99"));
+        product.setProductQuantity(stock);
+        product.setStatus(true);
+        product = products.saveAndFlush(product);
+        productIds.add(product.getId());
+        return product;
+    }
 
-        @Test
-        void rollsBackFirstProductWhenSecondProductHasInsufficientStock() {
-                User user = GenerateUser.generateUser();
-                user.setEmail(java.util.UUID.randomUUID() + "@example.com");
-                user = userRepository.saveAndFlush(user);
-                Long userId = user.getId();
+    OrderRequest item(Product product, int quantity) {
+        return new OrderRequest(product.getId(), quantity, "123 Test Street");
+    }
 
-                Product first = GenerateProducts.generateGoodProduct();
-                Product second = GenerateProducts.generateGoodProduct();
-                first.setProductQuantity(10);
-                second.setProductQuantity(1);
-                productRepository.saveAndFlush(first);
-                productRepository.saveAndFlush(second);
+    CreateRequestDto request(OrderRequest... items) {
+        return new CreateRequestDto(List.of(items));
+    }
 
+    int stock(Product product) {
+        return products.findById(product.getId()).orElseThrow().getProductQuantity();
+    }
+
+    long orderCount() {
+        return jdbc.queryForObject("SELECT count(*) FROM orders WHERE user_id = ?", Long.class, userId);
+    }
+
+    long itemCount() {
+        return jdbc.queryForObject("""
+                SELECT count(*) FROM order_items i JOIN orders o ON o.id = i.order_id
+                WHERE o.user_id = ?
+                """, Long.class, userId);
+    }
+
+    @Test
+    void retryReturnsTheSameOrderWithoutDecreasingStockAgain() {
+        Product product = product(3);
+        var request = request(item(product, 3));
+        var first = service.createOrder("retry-key", userId, request);
+        var retry = service.createOrder("retry-key", userId, request);
+        assertThat(retry).isEqualTo(first);
+        assertThat(first.totalAmount()).isEqualByComparingTo("59.97");
+        assertThat(stock(product)).isZero();
+        assertThatThrownBy(() -> service.createOrder("retry-key", userId, request(item(product, 1))))
+                .isInstanceOf(com.wassim.commerce.order.exaptions.IdempotencyConflictException.class);
+        assertThat(orderCount()).isEqualTo(1);
+        assertThat(itemCount()).isEqualTo(1);
+    }
+
+    @Test
+    void failedOrderRollsBackItsKeyAndCanBeRetried() {
+        Product first = product(10);
+        Product second = product(1);
+        var request = request(item(first, 2), item(second, 2));
+        assertThatThrownBy(() -> service.createOrder("failed-key", userId, request))
+                .isInstanceOf(BadRequest.class);
+        assertThat(keys.findByIdempotencyKeyAndUserId("failed-key", userId)).isNull();
+        assertThat(stock(first)).isEqualTo(10);
+        assertThat(orderCount()).isZero();
+        second.setProductQuantity(5);
+        products.saveAndFlush(second);
+        var result = service.createOrder("failed-key", userId, request);
+        assertThat(result.orderId()).isNotNull();
+        assertThat(stock(first)).isEqualTo(8);
+        assertThat(stock(second)).isEqualTo(3);
+        assertThat(orderCount()).isEqualTo(1);
+    }
+
+    @Test
+    void competingOrdersCannotOversellStock() throws Exception {
+        Product product = product(10);
+        var barrier = new CyclicBarrier(2);
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var checkout = (java.util.concurrent.Callable<Object>) () -> {
+                barrier.await(10, TimeUnit.SECONDS);
+                return service.createOrder(java.util.UUID.randomUUID().toString(), userId, request(item(product, 6)));
+            };
+            List<Future<Object>> attempts = List.of(executor.submit(checkout), executor.submit(checkout));
+            int successes = 0;
+            int rejected = 0;
+            for (var attempt : attempts) {
                 try {
-                        var request = new CreateRequestDto(List.of(
-                                        new OrderRequest(first.getId(), 3, "Address"),
-                                        new OrderRequest(second.getId(), 2, "Address")));
-
-                        assertThatThrownBy(() -> orderService.createOrder(java.util.UUID.randomUUID().toString(), userId, request))
-                                        .isInstanceOf(BadRequest.class)
-                                        .hasMessageContaining("Insufficient stock");
-
-                        assertThat(productRepository.findById(first.getId()).orElseThrow().getProductQuantity())
-                                        .isEqualTo(10);
-                        assertThat(productRepository.findById(second.getId()).orElseThrow().getProductQuantity())
-                                        .isEqualTo(1);
-                        assertThat(jdbc.queryForObject("SELECT count(*) FROM orders WHERE user_id = ?",
-                                        Long.class, userId)).isZero();
-                        assertThat(jdbc.queryForObject(
-                                        "SELECT count(*) FROM order_items WHERE product_id IN (?, ?)",
-                                        Long.class, first.getId(), second.getId())).isZero();
-                } finally {
-                        jdbc.update("DELETE FROM order_items WHERE product_id IN (?, ?)", first.getId(), second.getId());
-                        jdbc.update("DELETE FROM orders WHERE user_id = ?", userId);
-                        productRepository.deleteById(first.getId());
-                        productRepository.deleteById(second.getId());
-                        jdbc.update("DELETE FROM order_idempotency WHERE user_id = ?", userId);
-                        userRepository.deleteById(userId);
+                    assertThat(attempt.get(20, TimeUnit.SECONDS)).isNotNull();
+                    successes++;
+                } catch (ExecutionException ex) {
+                    assertThat(ex.getCause()).isInstanceOf(BadRequest.class)
+                            .hasMessageContaining("Insufficient stock");
+                    rejected++;
                 }
+            }
+            assertThat(successes).isEqualTo(1);
+            assertThat(rejected).isEqualTo(1);
+            assertThat(stock(product)).isEqualTo(4);
+            assertThat(orderCount()).isEqualTo(1);
+            assertThat(itemCount()).isEqualTo(1);
+        } finally {
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
         }
+    }
 
-        @Transactional
-        @Test
-        public void TestCreateOrderWithGoodInputs() {
-                User generateUser = GenerateUser.generateUser();
-                com.wassim.commerce.order.product.domain.Product product = GenerateProducts.generateGoodProduct();
-                List<Role> roles = roleRepository.findAll();
-                generateUser.setRoles(roles);
-                roleRepository.saveAll(roles);
-
-                userRepository.saveAndFlush(generateUser);
-                Product newProduct = productRepository.saveAndFlush(product);
-                userRepository.findAll();
-
-                int quantity = 3;
-
-                CreateRequestDto requestDto = new CreateRequestDto(
-                                List.of(
-                                                new OrderRequest(
-                                                                newProduct.getId(),
-                                                                quantity,
-                                                                "Adress"))
-
-                );
-
-                CreateOrderResponse response = orderService.createOrder(java.util.UUID.randomUUID().toString(), generateUser.getId(), requestDto);
-
-                Assertions.assertNotNull(response);
-                assertThat(response).isNotNull();
-                assertThat(response.orderId()).isNotNull();
-                assertThat(response.totalAmount())
-                                .isEqualTo(newProduct.getProductPrice().multiply(BigDecimal.valueOf(quantity)));
-                assertThat(response.totalQuantity()).isEqualTo(quantity);
-                Product updatedProduct = productRepository
-                                .findById(product.getId())
-                                .orElseThrow();
-
-                assertThat(updatedProduct.getProductQuantity())
-                                .isEqualTo(97);
-
-                assertThat(orderRepository.existsById(response.orderId()))
-                                .isTrue();
+    @Test
+    void concurrentRetriesCreateOneOrderAndReturnTheSameResponse() throws Exception {
+        Product product = product(10);
+        var request = request(item(product, 3));
+        var barrier = new CyclicBarrier(2);
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var checkout = (java.util.concurrent.Callable<com.wassim.commerce.order.order.dto.response.CreateOrderResponse>) () -> {
+                barrier.await(10, TimeUnit.SECONDS);
+                return service.createOrder("concurrent-key", userId, request);
+            };
+            var first = executor.submit(checkout);
+            var second = executor.submit(checkout);
+            assertThat(first.get(20, TimeUnit.SECONDS)).isEqualTo(second.get(20, TimeUnit.SECONDS));
+            assertThat(orderCount()).isEqualTo(1);
+            assertThat(itemCount()).isEqualTo(1);
+            assertThat(stock(product)).isEqualTo(7);
+        } finally {
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
         }
+    }
 
-        @Transactional
-        @Test
-        public void TestCreateOrderWithStatusNotActive() {
-                User generateUser = GenerateUser.generateUser();
-                Product product = GenerateProducts.generateProductStatusDisabled();
-                Product newProduct = productRepository.saveAndFlush(product);
-                userRepository.saveAndFlush(generateUser);
-
-                int quantity = 3;
-                CreateRequestDto requestDto = new CreateRequestDto(
-                                List.of(
-                                                new OrderRequest(
-                                                                newProduct.getId(),
-                                                                quantity,
-                                                                "Adress"))
-
-                );
-
-                Runnable createOrder = () -> orderService.createOrder(java.util.UUID.randomUUID().toString(), generateUser.getId(), requestDto);
-                assertThatThrownBy(createOrder::run).isInstanceOf(BadRequest.class)
-                                .hasMessage("Product  is not available" + newProduct.getId());
+    @Test
+    void blockedKeyTimesOutRollsBackAndCanBeRetried() throws Exception {
+        Product product = product(10);
+        var request = request(item(product, 3));
+        var locked = new java.util.concurrent.CountDownLatch(1);
+        var release = new java.util.concurrent.CountDownLatch(1);
+        var executor = Executors.newSingleThreadExecutor();
+        var holder = executor.submit(() -> new org.springframework.transaction.support.TransactionTemplate(transactions)
+                .executeWithoutResult(status -> {
+                    status.setRollbackOnly();
+                    keys.tryClaim(userId, "locked-key", "{}");
+                    locked.countDown();
+                    try {
+                        if (!release.await(15, TimeUnit.SECONDS)) throw new AssertionError("Lock holder timed out");
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(ex);
+                    }
+                }));
+        try {
+            assertThat(locked.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThatThrownBy(() -> service.createOrder("locked-key", userId, request))
+                    .isInstanceOf(org.springframework.dao.PessimisticLockingFailureException.class);
+            assertThat(stock(product)).isEqualTo(10);
+            assertThat(orderCount()).isZero();
+        } finally {
+            release.countDown();
+            try {
+                holder.get(10, TimeUnit.SECONDS);
+            } finally {
+                executor.shutdownNow();
+                assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+            }
         }
+        assertThat(keys.findByIdempotencyKeyAndUserId("locked-key", userId)).isNull();
+        assertThat(service.createOrder("locked-key", userId, request).orderId()).isNotNull();
+        assertThat(stock(product)).isEqualTo(7);
+        assertThat(orderCount()).isEqualTo(1);
+    }
 
-        @Transactional
-        @Test
-        public void TestRunningCreateOrderConcurrentWithLimitedQuantity() {
-                User generateUser = GenerateUser.generateUser();
-                Product product = GenerateProducts.generateGoodProduct();
-                List<Role> roles = roleRepository.findAll();
-                generateUser.setRoles(roles);
-                roleRepository.saveAll(roles);
-                User user = userRepository.saveAndFlush(generateUser);
-                Product newProduct = productRepository.saveAndFlush(product);
-                userRepository.findAll();
-
-                TestTransaction.flagForCommit();
-                TestTransaction.end();
-
-                var barrier = new CyclicBarrier(2);
-
-                int quantityFirstCheckout = 50;
-                int quantitySecondCheckout = 49;
-
-                Callable<CreateOrderResponse> checkout1 = () -> {
-                        barrier.await(5, TimeUnit.SECONDS);
-                        return orderService.createOrder(java.util.UUID.randomUUID().toString(),
-                                        user.getId(),
-                                        new CreateRequestDto(
-                                                        List.of(
-                                                                        new OrderRequest(
-                                                                                        newProduct.getId(),
-                                                                                        quantityFirstCheckout,
-                                                                                        "Adress"))));
-                };
-
-                Callable<CreateOrderResponse> checkout2 = () -> {
-                        barrier.await(5, TimeUnit.SECONDS);
-                        return orderService.createOrder(java.util.UUID.randomUUID().toString(),
-                                        user.getId(),
-                                        new CreateRequestDto(
-                                                        List.of(
-                                                                        new OrderRequest(
-                                                                                        newProduct.getId(),
-                                                                                        quantitySecondCheckout,
-                                                                                        "Adress"))));
-                };
-
-                ExecutorService executor = Executors.newFixedThreadPool(2);
-                try {
-                        Future<CreateOrderResponse> first = executor.submit(checkout1);
-                        Future<CreateOrderResponse> second = executor.submit(checkout2);
-
-                        CreateOrderResponse firstResponse = first.get();
-                        CreateOrderResponse secondResponse = second.get();
-                        assertNotEquals(firstResponse.orderId(), secondResponse.orderId());
-
-                        assertTrue(orderRepository.existsById(firstResponse.orderId()));
-                        assertTrue(orderRepository.existsById(secondResponse.orderId()));
-                        assertTrue(firstResponse.totalQuantity().equals(quantityFirstCheckout));
-                        assertTrue(secondResponse.totalQuantity().equals(quantitySecondCheckout));
-
-                } catch (Exception e) {
-                        throw new RuntimeException(e);
-                }
-
-        }
-
-        @Transactional
-        @Test
-        public void TestRunningCreateOrderConcurrentWithLimitedQuantity2() {
-                User generateUser = GenerateUser.generateUser();
-                Product product = GenerateProducts.generateGoodProduct();
-                List<Role> roles = roleRepository.findAll();
-                generateUser.setRoles(roles);
-                roleRepository.saveAll(roles);
-                User user = userRepository.saveAndFlush(generateUser);
-                Product newProduct = productRepository.saveAndFlush(product);
-                TestTransaction.flagForCommit();
-                TestTransaction.end();
-                var barrier = new CyclicBarrier(2);
-
-                int quantityFirstCheckout = 66;
-                int quantitySecondCheckout = 40;
-
-                ExecutorService executor = Executors.newFixedThreadPool(2);
-
-                Callable<CreateOrderResponse> checkout1 = () -> {
-                        barrier.await(5, TimeUnit.SECONDS);
-                        return orderService.createOrder(java.util.UUID.randomUUID().toString(),
-                                        user.getId(),
-                                        new CreateRequestDto(
-                                                        List.of(
-                                                                        new OrderRequest(
-                                                                                        newProduct.getId(),
-                                                                                        quantityFirstCheckout,
-                                                                                        "Adress"))));
-                };
-
-                Callable<CreateOrderResponse> checkout2 = () -> {
-                        barrier.await(5, TimeUnit.SECONDS);
-                        return orderService.createOrder(java.util.UUID.randomUUID().toString(),
-                                        user.getId(),
-                                        new CreateRequestDto(
-                                                        List.of(
-                                                                        new OrderRequest(
-                                                                                        newProduct.getId(),
-                                                                                        quantitySecondCheckout,
-                                                                                        "Adress"))));
-                };
-
-                try {
-
-                        Future<CreateOrderResponse> future1 = executor.submit(checkout1);
-                        Future<CreateOrderResponse> future2 = executor.submit(checkout2);
-                        CreateOrderResponse firstResponse = future1.get();
-                        CreateOrderResponse secondResponse = future2.get();
-
-                        assertNotEquals(firstResponse.orderId(), secondResponse.orderId());
-                        assertTrue(orderRepository.existsById(firstResponse.orderId()));
-
-                } catch (Exception e) {
-                        assertThat(e.getCause())
-                                        .isInstanceOf(RuntimeException.class);
-                }
-
-        }
 }
