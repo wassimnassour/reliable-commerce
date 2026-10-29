@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-29-create-order-idempotency
+      author: wassim
+      dbms: postgresql
+      changes:
+        - createTable:
+            tableName: order_idempotency
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_order_idempotency
+                    nullable: false
+
+              - column:
+                  name: idempotency_key
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: request_payload
+                  type: JSONB
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: response
+                  type: JSONB
+
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addUniqueConstraint:
+            tableName: order_idempotency
+            columnNames: user_id, idempotency_key
+            constraintName: user_id_idempotency_key
+
+        - addForeignKeyConstraint:
+            baseTableName: order_idempotency
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_order_idempotency_user
+
+      rollback:
+        - dropTable:
+            tableName: order_idempotency

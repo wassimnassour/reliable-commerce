@@ -57,7 +57,9 @@ class OrderRegressionTest {
             var orders = mock(OrderRepository.class);
             var items = mock(OrderItemsRepository.class);
             var service = new OrderServiceImpl(products, items, users, orders,
-                    Mappers.getMapper(OrderMapper.class));
+                    Mappers.getMapper(OrderMapper.class),
+                    mock(com.wassim.commerce.order.order.presisstance.OrderIdempotencyRepository.class),
+                    new tools.jackson.databind.ObjectMapper());
             Product product = new Product();
             product.setProductPrice(new BigDecimal("199.99"));
             product.setProductQuantity(10);
@@ -65,7 +67,7 @@ class OrderRegressionTest {
             when(products.findById(2L)).thenReturn(Optional.of(product));
             when(users.findById(1L)).thenReturn(Optional.of(new User()));
             var request = new CreateRequestDto(List.of(new OrderRequest(2L, 1, "Test address")));
-            assertThrows(BadRequest.class, () -> service.createOrder(1L, request));
+            assertThrows(BadRequest.class, () -> service.createOrder(java.util.UUID.randomUUID().toString(), 1L, request));
             assertEquals(10, product.getProductQuantity());
             verifyNoInteractions(orders, items);
         }

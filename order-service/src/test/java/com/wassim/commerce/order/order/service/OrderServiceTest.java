@@ -73,7 +73,7 @@ public class OrderServiceTest {
                                         new OrderRequest(first.getId(), 3, "Address"),
                                         new OrderRequest(second.getId(), 2, "Address")));
 
-                        assertThatThrownBy(() -> orderService.createOrder(userId, request))
+                        assertThatThrownBy(() -> orderService.createOrder(java.util.UUID.randomUUID().toString(), userId, request))
                                         .isInstanceOf(BadRequest.class)
                                         .hasMessageContaining("Insufficient stock");
 
@@ -91,6 +91,7 @@ public class OrderServiceTest {
                         jdbc.update("DELETE FROM orders WHERE user_id = ?", userId);
                         productRepository.deleteById(first.getId());
                         productRepository.deleteById(second.getId());
+                        jdbc.update("DELETE FROM order_idempotency WHERE user_id = ?", userId);
                         userRepository.deleteById(userId);
                 }
         }
@@ -119,7 +120,7 @@ public class OrderServiceTest {
 
                 );
 
-                CreateOrderResponse response = orderService.createOrder(generateUser.getId(), requestDto);
+                CreateOrderResponse response = orderService.createOrder(java.util.UUID.randomUUID().toString(), generateUser.getId(), requestDto);
 
                 Assertions.assertNotNull(response);
                 assertThat(response).isNotNull();
@@ -156,7 +157,7 @@ public class OrderServiceTest {
 
                 );
 
-                Runnable createOrder = () -> orderService.createOrder(generateUser.getId(), requestDto);
+                Runnable createOrder = () -> orderService.createOrder(java.util.UUID.randomUUID().toString(), generateUser.getId(), requestDto);
                 assertThatThrownBy(createOrder::run).isInstanceOf(BadRequest.class)
                                 .hasMessage("Product  is not available" + newProduct.getId());
         }
@@ -183,7 +184,7 @@ public class OrderServiceTest {
 
                 Callable<CreateOrderResponse> checkout1 = () -> {
                         barrier.await(5, TimeUnit.SECONDS);
-                        return orderService.createOrder(
+                        return orderService.createOrder(java.util.UUID.randomUUID().toString(),
                                         user.getId(),
                                         new CreateRequestDto(
                                                         List.of(
@@ -195,7 +196,7 @@ public class OrderServiceTest {
 
                 Callable<CreateOrderResponse> checkout2 = () -> {
                         barrier.await(5, TimeUnit.SECONDS);
-                        return orderService.createOrder(
+                        return orderService.createOrder(java.util.UUID.randomUUID().toString(),
                                         user.getId(),
                                         new CreateRequestDto(
                                                         List.of(
@@ -246,7 +247,7 @@ public class OrderServiceTest {
 
                 Callable<CreateOrderResponse> checkout1 = () -> {
                         barrier.await(5, TimeUnit.SECONDS);
-                        return orderService.createOrder(
+                        return orderService.createOrder(java.util.UUID.randomUUID().toString(),
                                         user.getId(),
                                         new CreateRequestDto(
                                                         List.of(
@@ -258,7 +259,7 @@ public class OrderServiceTest {
 
                 Callable<CreateOrderResponse> checkout2 = () -> {
                         barrier.await(5, TimeUnit.SECONDS);
-                        return orderService.createOrder(
+                        return orderService.createOrder(java.util.UUID.randomUUID().toString(),
                                         user.getId(),
                                         new CreateRequestDto(
                                                         List.of(

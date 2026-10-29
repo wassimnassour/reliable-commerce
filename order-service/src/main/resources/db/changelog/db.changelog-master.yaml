@@ -46,3 +46,6 @@ databaseChangeLog:
   - include:
       file: 017-order-price-decimal.yaml
       relativeToChangelogFile: true
+  -  include:
+      file: 018-create-order-idempotency.yaml
+      relativeToChangelogFile: true
