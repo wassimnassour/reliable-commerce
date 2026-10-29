@@ -11,7 +11,7 @@ public class   GenerateUser {
 
 
         User user = new User();
-        user.setEmail("TestEmail");
+        user.setEmail(java.util.UUID.randomUUID() + "@example.com");
         user.setPassword("TestPassword");
         return user;
     }

@@ -20,6 +20,18 @@ import java.util.Map;
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler({org.springframework.dao.PessimisticLockingFailureException.class,
+            jakarta.persistence.LockTimeoutException.class, jakarta.persistence.PessimisticLockException.class})
+    public ResponseEntity<Map<String, Object>> handleLockTimeout(RuntimeException ex) {
+        log.warn("Order database lock could not be acquired", ex);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "1")
+                .body(Map.of("timestamp", LocalDateTime.now(),
+                        "status", HttpStatus.SERVICE_UNAVAILABLE.value(),
+                        "error", "Service Unavailable",
+                        "message", "The request is busy. Retry with the same idempotency key."));
+    }
+
     @ExceptionHandler(IdempotencyConflictException.class)
     public ResponseEntity<Map<String, Object>> handleIdempotencyConflict(IdempotencyConflictException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
