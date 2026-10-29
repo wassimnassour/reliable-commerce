@@ -228,3 +228,17 @@ Existing access tokens remain valid until their expiry (15 minutes by default).
 Refresh tokens have unique IDs, are stored as SHA-256 hashes, and use the JWT
 expiration as their database expiry. Login, refresh, and logout acquire an account
 row lock to serialize session changes.
+
+### Order idempotency
+
+Send a nonblank `Idempotency-Key` header (at most 255 characters) on `POST /orders`.
+Generate a key once per checkout and reuse that key and the same request body
+after a timeout or connection failure. Use a new key for a new checkout.
+Keys are scoped to the authenticated user. A successful retry returns the original
+response without creating an order or reducing stock again. Reusing a key with a
+different body returns HTTP 409. Concurrent requests with the same key share one
+result; an unsuccessful transaction rolls back its claim and may be retried.
+
+Successful keys are currently retained indefinitely; there is no automatic expiry
+or cleanup. Do not reuse them for later checkouts. Any future retention limit must
+be documented because deleting a key ends its duplicate-request protection.

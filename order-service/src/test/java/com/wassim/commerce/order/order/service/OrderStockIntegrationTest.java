@@ -37,6 +37,7 @@ class OrderStockIntegrationTest {
     @Autowired ProductRepository products;
     @Autowired UserRepository users;
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.wassim.commerce.order.order.presisstance.OrderIdempotencyRepository keys;
 
     Long userId;
     final List<Long> productIds = new ArrayList<>();
@@ -54,6 +55,7 @@ class OrderStockIntegrationTest {
         jdbc.update("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id = ?)", userId);
         jdbc.update("DELETE FROM orders WHERE user_id = ?", userId);
         for (Long id : productIds) jdbc.update("DELETE FROM products WHERE id = ?", id);
+        jdbc.update("DELETE FROM order_idempotency WHERE user_id = ?", userId);
         jdbc.update("DELETE FROM users WHERE id = ?", userId);
     }
 
@@ -92,9 +94,73 @@ class OrderStockIntegrationTest {
     }
 
     @Test
+    void retryReturnsTheSameOrderWithoutDecreasingStockAgain() {
+        Product product = product(10);
+        var request = request(item(product, 3));
+        var first = service.createOrder("retry-key", userId, request);
+        var retry = service.createOrder("retry-key", userId, request);
+        assertThat(retry).isEqualTo(first);
+        assertThat(stock(product)).isEqualTo(7);
+        assertThat(orderCount()).isEqualTo(1);
+        assertThat(itemCount()).isEqualTo(1);
+    }
+
+    @Test
+    void changedPayloadWithTheSameKeyDoesNotCreateAnotherOrder() {
+        Product product = product(10);
+        service.createOrder("same-key", userId, request(item(product, 2)));
+        assertThatThrownBy(() -> service.createOrder("same-key", userId, request(item(product, 3))))
+                .isInstanceOf(com.wassim.commerce.order.exaptions.IdempotencyConflictException.class);
+        assertThat(stock(product)).isEqualTo(8);
+        assertThat(orderCount()).isEqualTo(1);
+    }
+
+    @Test
+    void failedOrderRollsBackItsKeyAndCanBeRetried() {
+        Product first = product(10);
+        Product second = product(1);
+        var request = request(item(first, 2), item(second, 2));
+        assertThatThrownBy(() -> service.createOrder("failed-key", userId, request))
+                .isInstanceOf(BadRequest.class);
+        assertThat(keys.findByIdempotencyKeyAndUserId("failed-key", userId)).isNull();
+        assertThat(stock(first)).isEqualTo(10);
+        assertThat(orderCount()).isZero();
+        second.setProductQuantity(5);
+        products.saveAndFlush(second);
+        var result = service.createOrder("failed-key", userId, request);
+        assertThat(result.orderId()).isNotNull();
+        assertThat(stock(first)).isEqualTo(8);
+        assertThat(stock(second)).isEqualTo(3);
+        assertThat(orderCount()).isEqualTo(1);
+    }
+
+    @Test
+    void concurrentRetriesCreateOneOrderAndReturnTheSameResponse() throws Exception {
+        Product product = product(10);
+        var request = request(item(product, 3));
+        var barrier = new CyclicBarrier(2);
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var checkout = (java.util.concurrent.Callable<com.wassim.commerce.order.order.dto.response.CreateOrderResponse>) () -> {
+                barrier.await(10, TimeUnit.SECONDS);
+                return service.createOrder("concurrent-key", userId, request);
+            };
+            var first = executor.submit(checkout);
+            var second = executor.submit(checkout);
+            assertThat(first.get(20, TimeUnit.SECONDS)).isEqualTo(second.get(20, TimeUnit.SECONDS));
+            assertThat(orderCount()).isEqualTo(1);
+            assertThat(itemCount()).isEqualTo(1);
+            assertThat(stock(product)).isEqualTo(7);
+        } finally {
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    @Test
     void sufficientStockCreatesOrderAndDecreasesStock() {
         Product product = product(10);
-        var response = service.createOrder(userId, request(item(product, 3)));
+        var response = service.createOrder(java.util.UUID.randomUUID().toString(), userId, request(item(product, 3)));
         assertThat(response.orderId()).isNotNull();
         assertThat(response.totalQuantity()).isEqualTo(3);
         assertThat(response.totalAmount()).isEqualByComparingTo("59.97");
@@ -108,7 +174,7 @@ class OrderStockIntegrationTest {
     @Test
     void insufficientStockRejectsOrderWithoutChangingDatabase() {
         Product product = product(2);
-        assertThatThrownBy(() -> service.createOrder(userId, request(item(product, 3))))
+        assertThatThrownBy(() -> service.createOrder(java.util.UUID.randomUUID().toString(), userId, request(item(product, 3))))
                 .isInstanceOf(BadRequest.class).hasMessageContaining("Insufficient stock");
         assertThat(stock(product)).isEqualTo(2);
         assertThat(orderCount()).isZero();
@@ -118,7 +184,7 @@ class OrderStockIntegrationTest {
     @Test
     void zeroStockRejectsOrder() {
         Product product = product(0);
-        assertThatThrownBy(() -> service.createOrder(userId, request(item(product, 1))))
+        assertThatThrownBy(() -> service.createOrder(java.util.UUID.randomUUID().toString(), userId, request(item(product, 1))))
                 .isInstanceOf(BadRequest.class).hasMessageContaining("Insufficient stock");
         assertThat(stock(product)).isZero();
         assertThat(orderCount()).isZero();
@@ -127,7 +193,7 @@ class OrderStockIntegrationTest {
     @Test
     void buyingExactlyRemainingStockSucceeds() {
         Product product = product(3);
-        var response = service.createOrder(userId, request(item(product, 3)));
+        var response = service.createOrder(java.util.UUID.randomUUID().toString(), userId, request(item(product, 3)));
         assertThat(response.totalQuantity()).isEqualTo(3);
         assertThat(stock(product)).isZero();
         assertThat(orderCount()).isEqualTo(1);
@@ -138,7 +204,7 @@ class OrderStockIntegrationTest {
     void laterInsufficientProductRollsBackEarlierAtomicStockDecrease() {
         Product first = product(10);
         Product second = product(1);
-        assertThatThrownBy(() -> service.createOrder(userId, request(item(first, 3), item(second, 2))))
+        assertThatThrownBy(() -> service.createOrder(java.util.UUID.randomUUID().toString(), userId, request(item(first, 3), item(second, 2))))
                 .isInstanceOf(BadRequest.class).hasMessageContaining("Insufficient stock");
         assertThat(stock(first)).isEqualTo(10);
         assertThat(stock(second)).isEqualTo(1);
@@ -154,7 +220,7 @@ class OrderStockIntegrationTest {
         try {
             var checkout = (java.util.concurrent.Callable<Object>) () -> {
                 barrier.await(10, TimeUnit.SECONDS);
-                return service.createOrder(userId, request(item(product, 6)));
+                return service.createOrder(java.util.UUID.randomUUID().toString(), userId, request(item(product, 6)));
             };
             List<Future<Object>> attempts = List.of(executor.submit(checkout), executor.submit(checkout));
             int successes = 0;
