@@ -6,7 +6,9 @@ import com.wassim.commerce.order.order.domain.Order;
 import com.wassim.commerce.order.order.domain.OrderIdempotency;
 import com.wassim.commerce.order.order.domain.OrderItems;
 import com.wassim.commerce.order.order.dto.request.CreateRequestDto;
+import com.wassim.commerce.order.order.dto.response.CancelOrderResponse;
 import com.wassim.commerce.order.order.dto.response.CreateOrderResponse;
+import com.wassim.commerce.order.order.enums.EOrderStatus;
 import com.wassim.commerce.order.order.mapper.OrderMapper;
 import com.wassim.commerce.order.order.presisstance.OrderIdempotencyRepository;
 import com.wassim.commerce.order.order.presisstance.OrderItemsRepository;
@@ -45,6 +47,7 @@ public class OrderServiceImpl implements OrderService {
     private final EntityManager entityManager;
 
     @Transactional
+    @Override
     public CreateOrderResponse createOrder(String orderIdempotencyKey, Long userId, CreateRequestDto createRequestDto) {
         entityManager
                 .createNativeQuery("SET LOCAL lock_timeout = '3s'").executeUpdate();
@@ -134,6 +137,37 @@ public class OrderServiceImpl implements OrderService {
 
         return response;
 
+    }
+
+    @Transactional
+    @Override
+    public CancelOrderResponse cancelOrder(Long userId, Long orderId) {
+
+
+        Order order = orderRepository.findById(orderId).orElseThrow(
+                ()-> new BadRequest("This order does not exist ")
+        );
+        if(!order.getUser().getId().equals(userId)) {
+            throw new BadRequest("Unauthorized access ");
+        }
+
+        if(order.getOrderStatus() == EOrderStatus.CANCELED){
+            return  orderMapper.toCancelOrderResponse(order);
+        }
+
+        order.setOrderStatus(EOrderStatus.CANCELED);
+
+        order.getOrderItems().forEach(orderItem -> {
+
+            Product product  = productRepository.findById(orderItem.getProduct().getId()).orElseThrow(
+                    ()->  new BadRequest("Product with id " + orderItem.getProduct().getId() + " is not found")
+            );
+            product.setProductQuantity(product.getProductQuantity() + orderItem.getQuantity());
+            productRepository.save(product);
+        });
+
+        orderRepository.save(order);
+        return orderMapper.toCancelOrderResponse(order);
     }
 
     private String writeJson(Object value) {

@@ -1,6 +1,7 @@
 package com.wassim.commerce.order.order.api;
 
 import com.wassim.commerce.order.order.dto.request.CreateRequestDto;
+import com.wassim.commerce.order.order.dto.response.CancelOrderResponse;
 import com.wassim.commerce.order.order.dto.response.CreateOrderResponse;
 import com.wassim.commerce.order.order.service.impl.OrderServiceImpl;
 import jakarta.validation.Valid;
@@ -27,10 +28,16 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<CreateOrderResponse> createOrder(@AuthenticationPrincipal Jwt jwt,
-                                                          @NotBlank @Size(max = 255) @RequestHeader("Idempotency-Key") String idempotencyKey,
-                                                           @Valid @RequestBody CreateRequestDto createRequestDto){
+                                                          @NotBlank @Size(max = 255) @RequestHeader("Idempotency-Key") String idempotencyKey, @Valid @RequestBody CreateRequestDto createRequestDto){
         Long userId = Long.valueOf(jwt.getSubject());
         return ResponseEntity.ok(  orderServiceImp.createOrder(idempotencyKey,userId , createRequestDto));
     };
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<CancelOrderResponse> cancelOrder(@AuthenticationPrincipal Jwt jwt , @PathVariable Long id){
+        Long userId = Long.valueOf(jwt.getSubject());
+
+        return ResponseEntity.ok(orderServiceImp.cancelOrder(userId, id));
+    }
 
 }
