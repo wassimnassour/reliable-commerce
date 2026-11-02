@@ -1,5 +1,6 @@
 package com.wassim.commerce.order.order.domain;
 
+import com.wassim.commerce.order.order.enums.EOrderStatus;
 import com.wassim.commerce.order.user.domain.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -25,8 +26,10 @@ public class Order {
     private String orderNumber;
     @Column(nullable = false, updatable = false)
     private Instant orderDate;
+
     @Column(nullable = false)
-    private String orderStatus;
+    @Enumerated(EnumType.STRING)
+    private EOrderStatus orderStatus;
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal totalPrice;
@@ -42,6 +45,10 @@ public class Order {
     @Column(nullable = false)
     private Instant updatedAt;
 
+
+    @Version
+    private Integer version;
+
     @PrePersist
     private void prePersist() {
         Instant now = Instant.now();
@@ -52,7 +59,7 @@ public class Order {
             orderNumber = UUID.randomUUID().toString();
         }
         if (orderStatus == null) {
-            orderStatus = "PLACED";
+            orderStatus = EOrderStatus.PAID;
         }
         updatedAt = now;
     }

@@ -1,5 +1,6 @@
 package com.wassim.commerce.order.order.api;
 
+import com.wassim.commerce.order.exaptions.BadRequest;
 import com.wassim.commerce.order.exaptions.GlobalExceptionHandler;
 import com.wassim.commerce.order.exaptions.IdempotencyConflictException;
 import com.wassim.commerce.order.order.service.impl.OrderServiceImpl;
@@ -96,5 +97,16 @@ class OrderIdempotencyApiTest {
                         .contentType("application/json").content(body))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409));
+    }
+
+    @Test
+    void nonexistentOrderCancellationReturns400() throws Exception {
+        when(service.cancelOrder(1L, 293L))
+                .thenThrow(new BadRequest("This order does not exist"));
+
+        mvc.perform(post("/orders/293/cancel"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("This order does not exist"));
+        verify(service).cancelOrder(1L, 293L);
     }
 }

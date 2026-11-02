@@ -22,4 +22,15 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
         int decreaseTheStock(
                         @Param("quantity") int quantity,
                         @Param("productId") Long productId);
+
+        @Modifying
+        @Query(value = """
+          update products
+                    set product_quantity= product_quantity + :quantity , version= version +1
+                    where id=:productId
+ 
+          """,
+                nativeQuery = true
+        )
+        int increaseTheStock(@Param("quantity") int quantity, @Param("productId") Long productId);
 }
