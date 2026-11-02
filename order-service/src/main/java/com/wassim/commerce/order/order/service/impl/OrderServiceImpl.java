@@ -147,6 +147,7 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(orderId).orElseThrow(
                 ()-> new BadRequest("This order does not exist ")
         );
+
         if(!order.getUser().getId().equals(userId)) {
             throw new BadRequest("Unauthorized access ");
         }

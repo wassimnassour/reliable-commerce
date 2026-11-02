@@ -49,3 +49,9 @@ databaseChangeLog:
   -  include:
       file: 018-create-order-idempotency.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 019-add-version-to-orders.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 020-migrate-placed-order-status.yaml
+      relativeToChangelogFile: true

@@ -3,6 +3,9 @@ package com.wassim.commerce.order.order.service;
 import com.wassim.commerce.order.TestcontainersConfiguration;
 import com.wassim.commerce.order.exaptions.BadRequest;
 import com.wassim.commerce.order.order.dto.request.CreateRequestDto;
+import com.wassim.commerce.order.order.dto.response.CancelOrderResponse;
+import com.wassim.commerce.order.order.enums.EOrderStatus;
+import com.wassim.commerce.order.order.presisstance.OrderRepository;
 import com.wassim.commerce.order.order.records.OrderRequest;
 import com.wassim.commerce.order.product.domain.Product;
 import com.wassim.commerce.order.product.persistence.ProductRepository;
@@ -35,6 +38,8 @@ import static org.assertj.core.api.Assertions.*;
 class OrderServiceTest {
     @Autowired OrderService service;
     @Autowired ProductRepository products;
+    @Autowired
+    OrderRepository orders;
     @Autowired UserRepository users;
     @Autowired JdbcTemplate jdbc;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
@@ -223,6 +228,31 @@ class OrderServiceTest {
         assertThat(service.createOrder("locked-key", userId, request).orderId()).isNotNull();
         assertThat(stock(product)).isEqualTo(7);
         assertThat(orderCount()).isEqualTo(1);
+    }
+
+
+    @Test
+    void cancellationPersistsStatusAndRestoresStockOnlyOnce() {
+        Product product = product(10);
+        var request = request(item(product, 3));
+        var order = service.createOrder("retry-key", userId, request);
+
+        assertThat(orderCount()).isEqualTo(1);
+        assertThat(order.status()).isEqualTo(EOrderStatus.PAID);
+        assertThat(stock(product)).isEqualTo(7);
+
+        CancelOrderResponse canceled = service.cancelOrder(userId, order.orderId());
+        assertThat(stock(product)).isEqualTo(10);
+        assertThat(canceled.id()).isEqualTo(order.orderId());
+        assertThat(canceled.status()).isEqualTo(EOrderStatus.CANCELED);
+        assertThat(orders.findById(order.orderId()).orElseThrow().getOrderStatus())
+                .isEqualTo(EOrderStatus.CANCELED);
+
+        assertThat(service.cancelOrder(userId, order.orderId())).isEqualTo(canceled);
+        assertThat(stock(product)).isEqualTo(10);
+        assertThat(orders.findById(order.orderId()).orElseThrow().getOrderStatus())
+                .isEqualTo(EOrderStatus.CANCELED);
+
     }
 
 }

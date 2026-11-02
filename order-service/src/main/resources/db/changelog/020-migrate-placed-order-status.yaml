@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 020-migrate-placed-order-status
+      author: wassim
+      dbms: postgresql
+      changes:
+        - update:
+            tableName: orders
+            columns:
+              - column:
+                  name: order_status
+                  value: PAID
+            where: order_status = 'PLACED'
