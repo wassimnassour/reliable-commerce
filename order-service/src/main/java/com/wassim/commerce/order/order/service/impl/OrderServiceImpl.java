@@ -2,6 +2,10 @@ package com.wassim.commerce.order.order.service.impl;
 
 import com.wassim.commerce.order.exaptions.BadRequest;
 import com.wassim.commerce.order.exaptions.IdempotencyConflictException;
+import com.wassim.commerce.order.messaging.config.MessagingDestinations;
+import com.wassim.commerce.order.messaging.outbox.events.OrderCancelEvent;
+import com.wassim.commerce.order.messaging.outbox.records.PublishRequestRecord;
+import com.wassim.commerce.order.messaging.outbox.service.OutboxService;
 import com.wassim.commerce.order.order.domain.Order;
 import com.wassim.commerce.order.order.domain.OrderIdempotency;
 import com.wassim.commerce.order.order.domain.OrderItems;
@@ -29,6 +33,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import java.util.stream.Collectors;
@@ -43,6 +48,8 @@ public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final OrderIdempotencyRepository orderIdempotencyRepository;
     private final ObjectMapper objectMapper;
+    private final MessagingDestinations messagingDestinations;
+    private final OutboxService outboxService;
 
     private final EntityManager entityManager;
 
@@ -168,6 +175,10 @@ public class OrderServiceImpl implements OrderService {
         });
 
         orderRepository.save(order);
+        outboxService.publish(
+                 PublishRequestRecord.builder().aggregateType("orders").aggregateId(String.valueOf( order.getId())).payload(new OrderCancelEvent(userId , orderId)).routingKey(  messagingDestinations.routingKey("orders","order.cancelled"))
+                         .exchange( messagingDestinations.exchange("orders")).build()
+        );
         return orderMapper.toCancelOrderResponse(order);
     }
 

@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: classpath:rabbitMq/rabbitMqKeysConfig.yaml
   application:
     name: order-service
   datasource:
@@ -16,10 +18,17 @@ spring:
   web:
     error:
       include-stacktrace: never
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
 
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiration-ms: 900000     # 15 Minutes
   refresh-token-expiration-ms: 604800000  # 7 Days
+
+
 
 

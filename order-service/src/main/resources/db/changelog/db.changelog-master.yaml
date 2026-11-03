@@ -55,3 +55,7 @@ databaseChangeLog:
   - include:
       file: 020-migrate-placed-order-status.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 021-create-outbox-messages.yaml
+      relativeToChangelogFile: true
+
