@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 public class MessageProducer {
      private final RabbitTemplate rabbitTemplate;
 
+
      public MessageProducer(RabbitTemplate rabbitTemplate) {
          this.rabbitTemplate = rabbitTemplate;
      }

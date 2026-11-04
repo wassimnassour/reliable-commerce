@@ -3,6 +3,7 @@ package com.wassim.commerce.order.config;
 import com.wassim.commerce.order.messaging.config.RabbitMqConfigProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.core.*;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +17,8 @@ import java.util.List;
 public class RabbitMqConfig {
 
     private final RabbitMqConfigProperties  rabbitMqConfigProperties;
+
+    MessageConverter messageConverter;
 
     @Bean
     public Declarables rabbitMQDeclarables() {

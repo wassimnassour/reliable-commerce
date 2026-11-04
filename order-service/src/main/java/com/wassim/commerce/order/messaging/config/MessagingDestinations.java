@@ -60,6 +60,10 @@ public class MessagingDestinations {
     public String orderCreatedRoutingKey() {
         return routingKey("orders", "order.created");
     }
+    public String orderCancelledRoutingKey() {
+        return routingKey("orders", "order.cancelled");
+    }
+
 
     public String fulfillmentOrdersQueue() {
         return queue("fulfillment-orders");
