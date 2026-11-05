@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: classpath:rabbitMq/rabbitMqKeysConfig.yaml
   application:
     name: order-service
   datasource:
@@ -7,6 +9,11 @@ spring:
     password: ${DB_PASSWORD:order_password}
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  scheduler:
+    workerCount: 5
+    maxWorkerCount: 10
+    queueCapacity: 10
+    poolIntervalMs: 5000
   jpa:
     hibernate:
       ddl-auto: validate
@@ -16,10 +23,19 @@ spring:
   web:
     error:
       include-stacktrace: never
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    publisher-confirm-type: correlated
 
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiration-ms: 900000     # 15 Minutes
   refresh-token-expiration-ms: 604800000  # 7 Days
+
+
+
 
 

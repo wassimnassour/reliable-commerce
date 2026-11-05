@@ -1,0 +1,32 @@
+commerce:
+  messaging:
+    exchanges:
+      - key: orders
+        name: commerce.events
+        type: topic
+        subscriptions:
+          - key: fulfillment-orders
+            queue: fulfillment.orders
+            routing-keys:
+              - order.created
+              - order.cancelled
+
+          - key: notifications-orders
+            queue: notifications.orders
+            routing-keys:
+              - order.created
+              - order.shipped
+
+          - key: analytics-orders
+            queue: analytics.orders
+            routing-keys:
+              - order.*
+
+      - key: payments
+        name: payment.events
+        type: topic
+        subscriptions:
+          - key: fulfillment-payments
+            queue: fulfillment.payments
+            routing-keys:
+              - payment.completed

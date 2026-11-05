@@ -117,9 +117,9 @@ Compile from the repository root:
 ./mvnw -f order-service/pom.xml compile
 ```
 
-## Local database
+## Local services
 
-Start PostgreSQL with Docker Desktop running:
+Start PostgreSQL and RabbitMQ with Docker Desktop running:
 
 ```sh
 docker compose -f infrastructure/docker-compose.yml up -d --wait
@@ -141,7 +141,30 @@ The application connects to
 `order_password`. These credentials are for local development. Override the application
 connection with `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` when needed.
 
-Database data persists in a Docker volume. Stop PostgreSQL while keeping the data:
+RabbitMQ is available at `localhost:5672`, matching the application's
+`spring.rabbitmq` settings. Open the management UI at
+[http://localhost:15672](http://localhost:15672) and sign in with `guest` / `guest`.
+These credentials are for local development. Both RabbitMQ ports are bound to
+localhost only.
+
+Exchange and queue names are configured in
+`order-service/src/main/resources/rabbitMq/rabbitMqKeysConfig.yaml`. The `key`
+fields are stable application identifiers; `name` and `queue` are the broker
+names. Inject `MessagingDestinations` to resolve them:
+
+```java
+producer.sendMessage(destinations.ordersExchange(),
+        destinations.orderCreatedRoutingKey(), "order created");
+// Generic lookups: destinations.exchange("payments")
+//                  destinations.queue("fulfillment-payments")
+```
+
+Listeners can resolve a configured queue with
+`@RabbitListener(queues = "#{@messagingDestinations.fulfillmentOrdersQueue()}")`.
+Routing-key lookups are scoped to an exchange and check its configured binding
+keys. Unknown keys and conflicting destination aliases cause an error.
+
+PostgreSQL and RabbitMQ data persist in Docker volumes. Stop both services while keeping the data:
 
 ```sh
 docker compose -f infrastructure/docker-compose.yml down

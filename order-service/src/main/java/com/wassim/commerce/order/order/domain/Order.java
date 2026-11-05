@@ -35,8 +35,10 @@ public class Order {
     private BigDecimal totalPrice;
     private Integer totalQuantity;
 
+
     @OneToMany(mappedBy = "order")
     private List<OrderItems> orderItems;
+
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "user_id", nullable = false)
