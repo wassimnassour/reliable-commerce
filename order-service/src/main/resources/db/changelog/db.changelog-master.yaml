@@ -58,4 +58,7 @@ databaseChangeLog:
   - include:
       file: 021-create-outbox-messages.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 022-create-inbox-messages.yaml
+      relativeToChangelogFile: true
 

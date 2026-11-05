@@ -14,8 +14,8 @@ import java.util.Map;
 
 @Component
 public class OrdersConsumer {
-    Map<String, EventHandler> handlersList= new HashMap<>();
-    Logger log = LoggerFactory.getLogger(OrdersConsumer.class);
+    private final Map<String, EventHandler> handlersList = new HashMap<>();
+    private final Logger log = LoggerFactory.getLogger(OrdersConsumer.class);
 
     public OrdersConsumer(List<EventHandler> handlers) {
         for (EventHandler handler : handlers) {
@@ -24,14 +24,15 @@ public class OrdersConsumer {
     }
 
     @RabbitListener(queues = "fulfillment.orders")
-    public void receiveMessage(    String payload,
-                                   @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
+    public void receiveMessage(
+            String payload,
+            @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey,
+            @Header(value = AmqpHeaders.MESSAGE_ID, required = false) String messageId) {
         EventHandler handler = handlersList.get(routingKey);
         if (handler != null) {
-            handler.handle(payload);
+            handler.handle(payload, messageId);
         } else {
             log.warn("No handler registered for routing key: {}", routingKey);
         }
     }
-
 }
