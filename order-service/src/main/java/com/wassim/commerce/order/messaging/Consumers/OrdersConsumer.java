@@ -3,6 +3,7 @@ package com.wassim.commerce.order.messaging.Consumers;
 import com.wassim.commerce.order.messaging.handlers.EventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -33,6 +34,7 @@ public class OrdersConsumer {
             handler.handle(payload, messageId);
         } else {
             log.warn("No handler registered for routing key: {}", routingKey);
+            throw new AmqpRejectAndDontRequeueException("Unknown routing key: " + routingKey);
         }
     }
 }

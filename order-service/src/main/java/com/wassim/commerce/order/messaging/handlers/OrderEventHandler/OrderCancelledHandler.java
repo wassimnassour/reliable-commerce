@@ -31,8 +31,13 @@ public class OrderCancelledHandler implements EventHandler {
     @Transactional
     public void handle(String payload ,String messageId) {
         final String consumerName = "fulfillment-orders";
+        int claimed = inboxRepository.tryClaim(
+                messageId ,
+                consumerName,
+                payload
+        );
 
-        if (messageId != null && inboxRepository.existsByMessageIdAndConsumerName(messageId, consumerName)) {
+        if (claimed==0) {
             log.warn("Message [{}] already processed by [{}]. Skipping duplicate.", messageId, consumerName);
             return;
         }
@@ -46,17 +51,6 @@ public class OrderCancelledHandler implements EventHandler {
 //            send Emails
 //            ......
 
-
-            if (messageId != null) {
-                InboxMessage inboxMessage = InboxMessage.builder()
-                        .messageId(messageId)
-                        .consumerName(consumerName)
-                        .payload(payload)
-                        .status(EInboxStatus.PROCESSED)
-                        .build();
-
-                inboxRepository.save(inboxMessage);
-            }
 
         } catch (JacksonException e) {
             log.error("Failed to parse OrderCancelEvent JSON: {}", payload, e);
