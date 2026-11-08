@@ -5,6 +5,7 @@ import com.wassim.commerce.order.messaging.outbox.enums.EOutboxStatus;
 import com.wassim.commerce.order.messaging.outbox.presissetance.OutboxRepository;
 
 import com.wassim.commerce.order.messaging.producer.MessageProducer;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
@@ -48,7 +49,7 @@ public class OutboxPoller {
 
     @Scheduled(fixedDelayString = "${spring.scheduler.poolIntervalMs:5000}")
     public void poll() {
-        Map<OutboxMessage, CompletableFuture<CorrelationData.Confirm>> pendingConfirms = new HashMap<>();
+        Map<OutboxMessage, CorrelationData> pendingConfirms = new HashMap<>();
 
         int freeSlot = availableSlots();
 
@@ -58,26 +59,44 @@ public class OutboxPoller {
         List<OutboxMessage> listMessagesToProcess = outboxRepository.findToProcess(EOutboxStatus.PENDING, 20);
 
         for (OutboxMessage message : listMessagesToProcess) {
-            CompletableFuture<CorrelationData.Confirm> future = messageProducer.sendMessage(message.getExchange(),
-                    message.getRoutingKey(), message.getPayload(), String.valueOf(message.getId()));
-            pendingConfirms.put(message, future);
+            int updatedRows = outboxRepository.claimMessage(
+                    message.getId(),
+                    EOutboxStatus.CLAIMED,
+                    EOutboxStatus.PENDING,
+                    Instant.now()
+            );
+
+            if (updatedRows == 0) {
+                logger.debug("Message {} claimed by another instance, skipping.", message.getId());
+                continue;
+            }
+
+            CorrelationData  correlationData = new CorrelationData(String.valueOf( message.getId()));
+           messageProducer.sendMessage(message.getExchange(),
+                    message.getRoutingKey(), message.getPayload(), String.valueOf(message.getId()),correlationData);
+            pendingConfirms.put(message, correlationData);
+
         }
 
         try {
-            CompletableFuture.allOf(pendingConfirms.values().toArray(new CompletableFuture[0])).get(5,
-                    TimeUnit.SECONDS);
+            CompletableFuture<?>[] futures = pendingConfirms.values().stream()
+                    .map(CorrelationData::getFuture)
+                    .toArray(CompletableFuture<?>[]::new);
+
+            CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
+
         } catch (Exception e) {
             logger.warn("One or more messages timed out or failed to receive broker ACK");
         }
 
-        for (Map.Entry<OutboxMessage, CompletableFuture<CorrelationData.Confirm>> entry : pendingConfirms.entrySet()) {
+        for (Map.Entry<OutboxMessage, CorrelationData> entry : pendingConfirms.entrySet()) {
             OutboxMessage message = entry.getKey();
-            CompletableFuture<CorrelationData.Confirm> future = entry.getValue();
+            CompletableFuture<CorrelationData.Confirm> future = entry.getValue().getFuture();
 
             if (future.isDone() && !future.isCompletedExceptionally()) {
                 try {
                     CorrelationData.Confirm confirm = future.join();
-                    if (confirm != null && confirm.isAck()) {
+                    if (confirm != null && entry.getValue().getReturned() == null &&  confirm.isAck()) {
                         message.setStatus(EOutboxStatus.PUBLISHED);
                         message.setProcessedAt(Instant.now());
                         message.setErrorMessage(null);
@@ -93,9 +112,11 @@ public class OutboxPoller {
             if (retries >= 3) {
                 message.setStatus(EOutboxStatus.FAILED);
                 message.setErrorMessage("Exceeded max retries waiting for broker ACK");
+            }else{
+                message.setStatus(EOutboxStatus.PENDING);
             }
         }
 
-        outboxRepository.saveAll(listMessagesToProcess);
+        outboxRepository.saveAll(pendingConfirms.keySet());
     }
 }

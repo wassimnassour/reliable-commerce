@@ -41,6 +41,9 @@ public class OutboxMessage {
     @Column(name = "status", nullable = false, length = 20)
     private EOutboxStatus status;
 
+    @Column(name = "updated_at" , nullable = false)
+    private Instant updatedAt;
+
     @Column(name = "retry_count", nullable = false)
     private int retryCount;
 
@@ -59,6 +62,6 @@ public class OutboxMessage {
     }
     @PreUpdate
     public void preUpdate() {
-        this.processedAt = Instant.now();
+        this.updatedAt = Instant.now();
     }
 }
