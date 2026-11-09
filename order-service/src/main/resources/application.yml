@@ -10,9 +10,6 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
   scheduler:
-    workerCount: 5
-    maxWorkerCount: 10
-    queueCapacity: 10
     poolIntervalMs: 5000
   jpa:
     hibernate:
@@ -30,6 +27,16 @@ spring:
     password: guest
     publisher-confirm-type: correlated
     publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: auto
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-retries: 2
+          initial-interval: 1s
+          multiplier: 2
+          max-interval: 10s
     template:
        mandatory: true
 jwt:

@@ -62,3 +62,6 @@ databaseChangeLog:
       file: 022-create-inbox-messages.yaml
       relativeToChangelogFile: true
 
+  - include:
+      file: 023-outbox-claim-lease.yaml
+      relativeToChangelogFile: true
