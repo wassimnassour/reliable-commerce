@@ -176,7 +176,7 @@ public class OrderServiceImpl implements OrderService {
 
         orderRepository.save(order);
         outboxService.publish(
-                 PublishRequestRecord.builder().aggregateType("orders").aggregateId(String.valueOf( order.getId())).payload(new OrderCancelEvent(userId , orderId)).routingKey(  messagingDestinations.routingKey("orders","order.cancelled"))
+                 PublishRequestRecord.builder().aggregateType("orders").aggregateId(String.valueOf( order.getId())).payload(new OrderCancelEvent( orderId,userId)).routingKey(  messagingDestinations.routingKey("orders","order.cancelled"))
                          .exchange( messagingDestinations.exchange("orders")).build()
         );
         return orderMapper.toCancelOrderResponse(order);

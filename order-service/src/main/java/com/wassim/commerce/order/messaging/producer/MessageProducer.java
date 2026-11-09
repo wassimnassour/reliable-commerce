@@ -17,14 +17,12 @@ public class MessageProducer {
          this.rabbitTemplate = rabbitTemplate;
      }
 
-     public CompletableFuture<CorrelationData.Confirm> sendMessage(String exchange, String routingKey, Object message , String messageId) {
-         CorrelationData correlationData = new CorrelationData(messageId);
+     public  void  sendMessage(String exchange, String routingKey, Object message , String messageId , CorrelationData correlationData) {
          System.out.println("Sending message: " + message);
          rabbitTemplate.convertAndSend(exchange, routingKey, message , m -> {
              m.getMessageProperties().setMessageId(messageId);
              return m;
          },correlationData);
-         return correlationData.getFuture();
      }
 
 }

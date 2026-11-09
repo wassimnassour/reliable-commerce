@@ -2,11 +2,10 @@ package com.wassim.commerce.order.messaging.handlers.OrderEventHandler;
 
 import com.wassim.commerce.order.messaging.config.MessagingDestinations;
 import com.wassim.commerce.order.messaging.handlers.EventHandler;
-import com.wassim.commerce.order.messaging.inbox.domain.InboxMessage;
-import com.wassim.commerce.order.messaging.inbox.enums.EInboxStatus;
 import com.wassim.commerce.order.messaging.inbox.persistence.InboxRepository;
 import com.wassim.commerce.order.messaging.outbox.events.OrderCancelEvent;
 import jakarta.transaction.Transactional;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -30,9 +29,17 @@ public class OrderCancelledHandler implements EventHandler {
     @Override
     @Transactional
     public void handle(String payload ,String messageId) {
+        if (messageId == null || messageId.isBlank() || messageId.length() > 100) {
+            throw new AmqpRejectAndDontRequeueException("A message ID of 1 to 100 characters is required");
+        }
         final String consumerName = "fulfillment-orders";
+        int claimed = inboxRepository.tryClaim(
+                messageId ,
+                consumerName,
+                payload
+        );
 
-        if (messageId != null && inboxRepository.existsByMessageIdAndConsumerName(messageId, consumerName)) {
+        if (claimed==0) {
             log.warn("Message [{}] already processed by [{}]. Skipping duplicate.", messageId, consumerName);
             return;
         }
@@ -47,20 +54,9 @@ public class OrderCancelledHandler implements EventHandler {
 //            ......
 
 
-            if (messageId != null) {
-                InboxMessage inboxMessage = InboxMessage.builder()
-                        .messageId(messageId)
-                        .consumerName(consumerName)
-                        .payload(payload)
-                        .status(EInboxStatus.PROCESSED)
-                        .build();
-
-                inboxRepository.save(inboxMessage);
-            }
-
         } catch (JacksonException e) {
             log.error("Failed to parse OrderCancelEvent JSON: {}", payload, e);
-            throw new IllegalArgumentException("Malformed event payload", e);
+            throw new AmqpRejectAndDontRequeueException("Malformed event payload", e);
         }
     }
 }

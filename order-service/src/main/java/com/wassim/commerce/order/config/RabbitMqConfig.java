@@ -44,6 +44,7 @@ public class RabbitMqConfig {
                 Queue queue = QueueBuilder
                         .durable(subscription.getQueue())
                         .quorum()
+                        .withArguments(subscription.getArguments())
                         .build();
 
                 declarables.add(queue);

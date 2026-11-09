@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 023-outbox-claim-lease
+      author: wassim
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE outbox_messages
+                ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE,
+                ADD COLUMN lease_until TIMESTAMP WITH TIME ZONE;
+              UPDATE outbox_messages SET updated_at = created_at;
+              ALTER TABLE outbox_messages ALTER COLUMN updated_at SET NOT NULL;
+              ALTER TABLE outbox_messages ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP;
+              UPDATE outbox_messages SET status = 'PENDING' WHERE status = 'CLAIMED';
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE outbox_messages DROP COLUMN lease_until, DROP COLUMN updated_at;

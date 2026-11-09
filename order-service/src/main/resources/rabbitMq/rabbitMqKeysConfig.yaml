@@ -1,6 +1,14 @@
 commerce:
   messaging:
     exchanges:
+      - key: orders-dead-letter
+        name: orders.dlx
+        type: direct
+        subscriptions:
+            - key: fulfillment-orders-dlq
+              queue: fulfillment.orders.dlq
+              routing-keys:
+                - fulfillment.orders.dead
       - key: orders
         name: commerce.events
         type: topic
@@ -10,7 +18,9 @@ commerce:
             routing-keys:
               - order.created
               - order.cancelled
-
+            arguments:
+              x-dead-letter-exchange: orders.dlx
+              x-dead-letter-routing-key: fulfillment.orders.dead
           - key: notifications-orders
             queue: notifications.orders
             routing-keys:

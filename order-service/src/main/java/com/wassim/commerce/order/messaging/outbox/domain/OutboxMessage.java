@@ -41,6 +41,12 @@ public class OutboxMessage {
     @Column(name = "status", nullable = false, length = 20)
     private EOutboxStatus status;
 
+    @Column(name = "updated_at" , nullable = false)
+    private Instant updatedAt;
+
+    @Column(name = "lease_until")
+    private Instant leaseUntil;
+
     @Column(name = "retry_count", nullable = false)
     private int retryCount;
 
@@ -56,9 +62,10 @@ public class OutboxMessage {
     @PrePersist
     public void prePersist() {
         this.createdAt = Instant.now();
+        this.updatedAt = this.createdAt;
     }
     @PreUpdate
     public void preUpdate() {
-        this.processedAt = Instant.now();
+        this.updatedAt = Instant.now();
     }
 }

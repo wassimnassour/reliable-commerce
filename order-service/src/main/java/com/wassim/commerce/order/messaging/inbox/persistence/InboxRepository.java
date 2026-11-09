@@ -20,4 +20,35 @@ public interface InboxRepository extends JpaRepository<InboxMessage, Long> {
     @Modifying
     @Query("DELETE FROM InboxMessage i WHERE i.processedAt < :cutoff")
     int deleteProcessedBefore(@Param("cutoff") Instant cutoff);
+
+
+    @Modifying
+    @Query(value = """
+    INSERT INTO inbox_messages (
+        message_id,
+        consumer_name,
+        payload,
+        status,
+        created_at,
+        processed_at
+    )
+    VALUES (
+        :messageId,
+        :consumerName,
+        CAST(:payload AS jsonb),
+        'PROCESSED',
+        NOW(),
+        NOW()
+    )
+    ON CONFLICT ON CONSTRAINT
+        uq_inbox_messages_message_consumer
+    DO NOTHING
+    """, nativeQuery = true)
+    int tryClaim(
+            @Param("messageId") String messageId,
+            @Param("consumerName") String consumerName,
+            @Param("payload") String payload
+    );
+
+
 }
