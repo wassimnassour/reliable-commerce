@@ -21,6 +21,10 @@ public interface InboxRepository extends JpaRepository<InboxMessage, Long> {
     @Query("DELETE FROM InboxMessage i WHERE i.processedAt < :cutoff")
     int deleteProcessedBefore(@Param("cutoff") Instant cutoff);
 
+    int countByMessageIdAndConsumerName(
+            String messageId,
+            String consumerName
+    );
 
     @Modifying
     @Query(value = """

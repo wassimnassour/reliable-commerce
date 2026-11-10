@@ -24,7 +24,7 @@ public interface OutboxRepository extends JpaRepository<OutboxMessage, Long> {
         """, nativeQuery = true)
     List<OutboxMessage> findToProcess(@Param("now") Instant now, @Param("limit") int limit);
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRED)
     @Modifying
     @Query("""
         UPDATE OutboxMessage m
@@ -36,7 +36,7 @@ public interface OutboxRepository extends JpaRepository<OutboxMessage, Long> {
             @Param("pending") EOutboxStatus pending, @Param("retryCount") int retryCount,
             @Param("now") Instant now, @Param("leaseUntil") Instant leaseUntil);
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRED)
     @Modifying
     @Query("""
         UPDATE OutboxMessage m
