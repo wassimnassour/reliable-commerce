@@ -142,7 +142,7 @@ public class OrderServiceImpl implements OrderService {
 
         idempotency.setResponse(writeJson(response));
         orderIdempotencyRepository.save(idempotency);
-        outboxService.publish(PublishRequestRecord.builder().aggregateType("orders").routingKey( messagingDestinations.orderCreatedRoutingKey()).payload(writeJson(new OrderCreatedEvent(order.getId()))).exchange(messagingDestinations.ordersExchange()).aggregateId(String.valueOf(order.getId())).build());
+        outboxService.publish(PublishRequestRecord.builder().aggregateType("orders").routingKey( messagingDestinations.orderCreatedRoutingKey()).payload(new OrderCreatedEvent(order.getId())).exchange(messagingDestinations.ordersExchange()).aggregateId(String.valueOf(order.getId())).build());
         return response;
 
     }
