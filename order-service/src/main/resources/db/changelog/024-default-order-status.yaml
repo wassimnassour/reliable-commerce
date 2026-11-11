@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 024-default-order-status
+      author: wassim
+      dbms: postgresql
+      changes:
+        - addDefaultValue:
+            tableName: orders
+            columnName: order_status
+            columnDataType: varchar(255)
+            defaultValue: PENDING_PAYMENT
+      rollback:
+        - dropDefaultValue:
+            tableName: orders
+            columnName: order_status
+            columnDataType: varchar(255)

@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: 026-add-order-currency
+      author: wassim
+      dbms: postgresql
+      changes:
+        - addColumn:
+            tableName: orders
+            columns:
+              - column:
+                  name: currency
+                  type: VARCHAR(255)
+                  defaultValue: MAD
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropColumn:
+            tableName: orders
+            columnName: currency
+  - changeSet:
+      id: 026-unique-pending-payment-per-order
+      author: wassim
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: |
+              CREATE UNIQUE INDEX uq_pending_payment_per_order
+              ON payments (order_id)
+              WHERE status = 'PENDING';
+      rollback:
+        - dropIndex:
+            tableName: payments
+            indexName: uq_pending_payment_per_order

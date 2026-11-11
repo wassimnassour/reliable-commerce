@@ -65,3 +65,12 @@ databaseChangeLog:
   - include:
       file: 023-outbox-claim-lease.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 024-default-order-status.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 025-create-payments.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 026-order-currency-and-pending-payment-index.yaml
+      relativeToChangelogFile: true

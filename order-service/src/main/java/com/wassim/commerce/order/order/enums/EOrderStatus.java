@@ -4,4 +4,5 @@ public enum EOrderStatus {
     NEW,
     PAID,
     CANCELED,
+    PENDING_PAYMENT
 }

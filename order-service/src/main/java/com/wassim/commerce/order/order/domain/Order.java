@@ -1,5 +1,6 @@
 package com.wassim.commerce.order.order.domain;
 
+import com.wassim.commerce.order.enums.Currency;
 import com.wassim.commerce.order.order.enums.EOrderStatus;
 import com.wassim.commerce.order.user.domain.User;
 import jakarta.persistence.*;
@@ -33,6 +34,11 @@ public class Order {
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal totalPrice;
+
+    @Column(nullable = false, updatable = false)
+    @Enumerated(EnumType.STRING)
+    private Currency currency = Currency.MAD;
+
     private Integer totalQuantity;
 
 
@@ -61,7 +67,7 @@ public class Order {
             orderNumber = UUID.randomUUID().toString();
         }
         if (orderStatus == null) {
-            orderStatus = EOrderStatus.PAID;
+            orderStatus = EOrderStatus.PENDING_PAYMENT;
         }
         updatedAt = now;
     }

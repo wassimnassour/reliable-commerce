@@ -4,6 +4,7 @@ import com.wassim.commerce.order.exaptions.BadRequest;
 import com.wassim.commerce.order.exaptions.IdempotencyConflictException;
 import com.wassim.commerce.order.messaging.config.MessagingDestinations;
 import com.wassim.commerce.order.messaging.outbox.events.OrderCancelEvent;
+import com.wassim.commerce.order.messaging.outbox.events.OrderCreatedEvent;
 import com.wassim.commerce.order.messaging.outbox.records.PublishRequestRecord;
 import com.wassim.commerce.order.messaging.outbox.service.OutboxService;
 import com.wassim.commerce.order.order.domain.Order;
@@ -141,7 +142,7 @@ public class OrderServiceImpl implements OrderService {
 
         idempotency.setResponse(writeJson(response));
         orderIdempotencyRepository.save(idempotency);
-
+        outboxService.publish(PublishRequestRecord.builder().aggregateType("orders").routingKey( messagingDestinations.orderCreatedRoutingKey()).payload(writeJson(new OrderCreatedEvent(order.getId()))).exchange(messagingDestinations.ordersExchange()).aggregateId(String.valueOf(order.getId())).build());
         return response;
 
     }

@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: 025-create-payments
+      author: wassim
+      dbms: postgresql
+      changes:
+        - createTable:
+            tableName: payments
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  generationType: BY DEFAULT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: order_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: NUMERIC(19, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            constraintName: payments_order_id_fkey
+            baseTableName: payments
+            baseColumnNames: order_id
+            referencedTableName: orders
+            referencedColumnNames: id
+            onDelete: RESTRICT
+        - createIndex:
+            tableName: payments
+            indexName: idx_payments_order_id
+            columns:
+              - column:
+                  name: order_id
+      rollback:
+        - dropTable:
+            tableName: payments
