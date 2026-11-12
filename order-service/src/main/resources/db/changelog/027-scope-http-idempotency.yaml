@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 027-scope-http-idempotency
+      author: wassim
+      dbms: postgresql
+      changes:
+        - addColumn:
+            tableName: order_idempotency
+            columns:
+              - column:
+                  name: operation
+                  type: VARCHAR(255)
+                  defaultValue: "POST /orders"
+                  constraints:
+                    nullable: false
+        - dropDefaultValue:
+            tableName: order_idempotency
+            columnName: operation
+        - dropUniqueConstraint:
+            tableName: order_idempotency
+            constraintName: user_id_idempotency_key
+        - addUniqueConstraint:
+            tableName: order_idempotency
+            columnNames: user_id, operation, idempotency_key
+            constraintName: uq_http_idempotency_scope
