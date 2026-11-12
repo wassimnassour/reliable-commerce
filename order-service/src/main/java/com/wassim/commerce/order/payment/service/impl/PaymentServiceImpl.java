@@ -44,4 +44,9 @@ public class PaymentServiceImpl implements PaymentService {
 
         return paymentMapper.toResponse(paymentRepository.save(payment));
     }
+
+    @Override
+    public void completePayment(Long paymentId, EPaymentStatus results) {
+        paymentRepository.findById(paymentId).orElseThrow(() -> new BadRequest("Payment not found"));
+    }
 }

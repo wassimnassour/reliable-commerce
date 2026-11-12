@@ -43,7 +43,7 @@ class OrderServiceTest {
     @Autowired UserRepository users;
     @Autowired JdbcTemplate jdbc;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
-    @Autowired com.wassim.commerce.order.order.presisstance.OrderIdempotencyRepository keys;
+    @Autowired com.wassim.commerce.order.common.idempotency.IdempotencyRepository keys;
 
     Long userId;
     final List<Long> productIds = new ArrayList<>();
@@ -61,7 +61,7 @@ class OrderServiceTest {
         jdbc.update("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id = ?)", userId);
         jdbc.update("DELETE FROM orders WHERE user_id = ?", userId);
         for (Long id : productIds) jdbc.update("DELETE FROM products WHERE id = ?", id);
-        jdbc.update("DELETE FROM order_idempotency WHERE user_id = ?", userId);
+        jdbc.update("DELETE FROM http_idempotency WHERE user_id = ?", userId);
         jdbc.update("DELETE FROM users WHERE id = ?", userId);
     }
 
@@ -121,7 +121,7 @@ class OrderServiceTest {
         var request = request(item(first, 2), item(second, 2));
         assertThatThrownBy(() -> service.createOrder("failed-key", userId, request))
                 .isInstanceOf(BadRequest.class);
-        assertThat(keys.findByIdempotencyKeyAndUserId("failed-key", userId)).isNull();
+        assertThat(keys.findByUserIdAndOperationAndIdempotencyKey(userId, "POST /orders", "failed-key")).isNull();
         assertThat(stock(first)).isEqualTo(10);
         assertThat(orderCount()).isZero();
         second.setProductQuantity(5);
@@ -200,7 +200,7 @@ class OrderServiceTest {
         var holder = executor.submit(() -> new org.springframework.transaction.support.TransactionTemplate(transactions)
                 .executeWithoutResult(status -> {
                     status.setRollbackOnly();
-                    keys.tryClaim(userId, "locked-key", "{}");
+                    keys.tryClaim(userId, "POST /orders", "locked-key", "{}");
                     locked.countDown();
                     try {
                         if (!release.await(15, TimeUnit.SECONDS)) throw new AssertionError("Lock holder timed out");
@@ -224,7 +224,7 @@ class OrderServiceTest {
                 assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
             }
         }
-        assertThat(keys.findByIdempotencyKeyAndUserId("locked-key", userId)).isNull();
+        assertThat(keys.findByUserIdAndOperationAndIdempotencyKey(userId, "POST /orders", "locked-key")).isNull();
         assertThat(service.createOrder("locked-key", userId, request).orderId()).isNotNull();
         assertThat(stock(product)).isEqualTo(7);
         assertThat(orderCount()).isEqualTo(1);

@@ -1,21 +1,19 @@
 package com.wassim.commerce.order.order.service.impl;
 
+import com.wassim.commerce.order.common.idempotency.IdempotencyService;
 import com.wassim.commerce.order.exaptions.BadRequest;
-import com.wassim.commerce.order.exaptions.IdempotencyConflictException;
 import com.wassim.commerce.order.messaging.config.MessagingDestinations;
 import com.wassim.commerce.order.messaging.outbox.events.OrderCancelEvent;
 import com.wassim.commerce.order.messaging.outbox.events.OrderCreatedEvent;
 import com.wassim.commerce.order.messaging.outbox.records.PublishRequestRecord;
 import com.wassim.commerce.order.messaging.outbox.service.OutboxService;
 import com.wassim.commerce.order.order.domain.Order;
-import com.wassim.commerce.order.order.domain.OrderIdempotency;
 import com.wassim.commerce.order.order.domain.OrderItems;
 import com.wassim.commerce.order.order.dto.request.CreateRequestDto;
 import com.wassim.commerce.order.order.dto.response.CancelOrderResponse;
 import com.wassim.commerce.order.order.dto.response.CreateOrderResponse;
 import com.wassim.commerce.order.order.enums.EOrderStatus;
 import com.wassim.commerce.order.order.mapper.OrderMapper;
-import com.wassim.commerce.order.order.presisstance.OrderIdempotencyRepository;
 import com.wassim.commerce.order.order.presisstance.OrderItemsRepository;
 import com.wassim.commerce.order.order.presisstance.OrderRepository;
 import com.wassim.commerce.order.order.records.OrderRequest;
@@ -24,12 +22,9 @@ import com.wassim.commerce.order.product.domain.Product;
 import com.wassim.commerce.order.product.persistence.ProductRepository;
 import com.wassim.commerce.order.user.domain.User;
 import com.wassim.commerce.order.user.presistance.UserRepository;
-import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -47,41 +42,18 @@ public class OrderServiceImpl implements OrderService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
-    private final OrderIdempotencyRepository orderIdempotencyRepository;
-    private final ObjectMapper objectMapper;
+    private final IdempotencyService idempotencyService;
     private final MessagingDestinations messagingDestinations;
     private final OutboxService outboxService;
-
-    private final EntityManager entityManager;
 
     @Transactional
     @Override
     public CreateOrderResponse createOrder(String orderIdempotencyKey, Long userId, CreateRequestDto createRequestDto) {
-        entityManager
-                .createNativeQuery("SET LOCAL lock_timeout = '3s'").executeUpdate();
+        return idempotencyService.execute(userId, "POST /orders", orderIdempotencyKey, createRequestDto,
+                CreateOrderResponse.class, () -> createOrder(userId, createRequestDto));
+    }
 
-        String payload = writeJson(createRequestDto);
-        int insertedIntoIdempotency = orderIdempotencyRepository.tryClaim(userId, orderIdempotencyKey, payload);
-
-        OrderIdempotency idempotency = orderIdempotencyRepository.findByIdempotencyKeyAndUserId(orderIdempotencyKey,
-                userId);
-        if (insertedIntoIdempotency == 0) {
-            JsonNode savedPayload = readJson(idempotency.getPayload(), JsonNode.class);
-            JsonNode currentPayload = readJson(payload, JsonNode.class);
-
-            if (!savedPayload.equals(currentPayload)) {
-                throw new IdempotencyConflictException();
-            }
-
-            if (idempotency.getResponse() == null) {
-                throw new IllegalStateException(
-                        "Idempotency record has no saved response");
-            }
-
-            return readJson(idempotency.getResponse(), CreateOrderResponse.class);
-
-        }
-
+    private CreateOrderResponse createOrder(Long userId, CreateRequestDto createRequestDto) {
         boolean hasDuplicates = createRequestDto.products().stream().collect(
                 Collectors.groupingBy(OrderRequest::productId, Collectors.counting())).values().stream()
                 .anyMatch(count -> count > 1);
@@ -140,8 +112,6 @@ public class OrderServiceImpl implements OrderService {
 
         CreateOrderResponse response = orderMapper.toCreateOrderResponse(order);
 
-        idempotency.setResponse(writeJson(response));
-        orderIdempotencyRepository.save(idempotency);
         outboxService.publish(PublishRequestRecord.builder().aggregateType("orders").routingKey( messagingDestinations.orderCreatedRoutingKey()).payload(new OrderCreatedEvent(order.getId())).exchange(messagingDestinations.ordersExchange()).aggregateId(String.valueOf(order.getId())).build());
         return response;
 
@@ -181,13 +151,5 @@ public class OrderServiceImpl implements OrderService {
                          .exchange( messagingDestinations.exchange("orders")).build()
         );
         return orderMapper.toCancelOrderResponse(order);
-    }
-
-    private String writeJson(Object value) {
-        return objectMapper.writeValueAsString(value);
-    }
-
-    private <T> T readJson(String json, Class<T> type) {
-        return objectMapper.readValue(json, type);
     }
 }
