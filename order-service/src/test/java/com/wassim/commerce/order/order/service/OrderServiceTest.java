@@ -61,7 +61,7 @@ class OrderServiceTest {
         jdbc.update("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id = ?)", userId);
         jdbc.update("DELETE FROM orders WHERE user_id = ?", userId);
         for (Long id : productIds) jdbc.update("DELETE FROM products WHERE id = ?", id);
-        jdbc.update("DELETE FROM order_idempotency WHERE user_id = ?", userId);
+        jdbc.update("DELETE FROM http_idempotency WHERE user_id = ?", userId);
         jdbc.update("DELETE FROM users WHERE id = ?", userId);
     }
 

@@ -12,7 +12,7 @@ public interface IdempotencyRepository extends JpaRepository<IdempotencyEntity, 
 
     @Modifying
     @Query(value = """
-            INSERT INTO order_idempotency (
+            INSERT INTO http_idempotency (
                 user_id, operation, idempotency_key, request_payload,
                 created_at, updated_at
             )

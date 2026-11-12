@@ -10,7 +10,7 @@ import java.time.Instant;
 
 @Getter
 @Entity
-@Table(name = "order_idempotency")
+@Table(name = "http_idempotency")
 public class IdempotencyEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
