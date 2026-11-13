@@ -238,7 +238,7 @@ class OrderServiceTest {
         var order = service.createOrder("retry-key", userId, request);
 
         assertThat(orderCount()).isEqualTo(1);
-        assertThat(order.status()).isEqualTo(EOrderStatus.PAID);
+        assertThat(order.status()).isEqualTo(EOrderStatus.PENDING_PAYMENT);
         assertThat(stock(product)).isEqualTo(7);
 
         CancelOrderResponse canceled = service.cancelOrder(userId, order.orderId());

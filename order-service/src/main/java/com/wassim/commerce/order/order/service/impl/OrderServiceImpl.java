@@ -122,7 +122,7 @@ public class OrderServiceImpl implements OrderService {
     public CancelOrderResponse cancelOrder(Long userId, Long orderId) {
 
 
-        Order order = orderRepository.findById(orderId).orElseThrow(
+        Order order = orderRepository.findAndLockById(orderId).orElseThrow(
                 ()-> new BadRequest("This order does not exist ")
         );
 
@@ -132,6 +132,10 @@ public class OrderServiceImpl implements OrderService {
 
         if(order.getOrderStatus() == EOrderStatus.CANCELED){
             return  orderMapper.toCancelOrderResponse(order);
+        }
+
+        if (order.getOrderStatus() != EOrderStatus.PENDING_PAYMENT && order.getOrderStatus() != EOrderStatus.NEW) {
+            throw new BadRequest("Only unpaid orders can be canceled");
         }
 
         order.setOrderStatus(EOrderStatus.CANCELED);
