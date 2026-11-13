@@ -44,9 +44,37 @@ public class PaymentServiceImpl implements PaymentService {
 
         return paymentMapper.toResponse(paymentRepository.save(payment));
     }
-
+    @Transactional
     @Override
-    public void completePayment(Long paymentId, EPaymentStatus results) {
-        paymentRepository.findById(paymentId).orElseThrow(() -> new BadRequest("Payment not found"));
+    public void completePayment(Long paymentId, EPaymentStatus result) {
+
+        if (result != EPaymentStatus.SUCCEEDED &&
+                result != EPaymentStatus.FAILED) {
+            throw new BadRequest("Invalid payment result");
+        }
+
+        Order order = orderRepository.findAndLockByPaymentId(paymentId)
+                .orElseThrow(() -> new BadRequest("Order not found"));
+
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new BadRequest("Payment not found"));
+
+        if (payment.getStatus() == result) {
+            return;
+        }
+
+        if (payment.getStatus() != EPaymentStatus.PENDING) {
+            throw new BadRequest("Payment already completed");
+        }
+
+        if (order.getOrderStatus() != EOrderStatus.PENDING_PAYMENT) {
+            throw new BadRequest("Order is not pending payment");
+        }
+
+        payment.setStatus(result);
+
+        if (result == EPaymentStatus.SUCCEEDED) {
+            order.setOrderStatus(EOrderStatus.PAID);
+        }
     }
 }
