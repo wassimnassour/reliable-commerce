@@ -150,17 +150,17 @@ localhost only.
 Exchange and queue names are configured in
 `order-service/src/main/resources/rabbitMq/rabbitMqKeysConfig.yaml`. The `key`
 fields are stable application identifiers; `name` and `queue` are the broker
-names. Inject `MessagingDestinations` to resolve them:
+names. Inject `OrderMessagingDestinations` or `PaymentMessagingDestinations` to resolve them:
 
 ```java
-producer.sendMessage(destinations.ordersExchange(),
-        destinations.orderCreatedRoutingKey(), "order created");
-// Generic lookups: destinations.exchange("payments")
+producer.sendMessage(destinations.exchange(),
+        destinations.createdRoutingKey(), "order created");
+// Generic lookups via MessagingDestinations: destinations.exchange("payments")
 //                  destinations.queue("fulfillment-payments")
 ```
 
 Listeners can resolve a configured queue with
-`@RabbitListener(queues = "#{@messagingDestinations.fulfillmentOrdersQueue()}")`.
+`@RabbitListener(queues = "#{@orderMessagingDestinations.fulfillmentQueue()}")`.
 Routing-key lookups are scoped to an exchange and check its configured binding
 keys. Unknown keys and conflicting destination aliases cause an error.
 

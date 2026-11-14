@@ -24,7 +24,7 @@ public class OrdersConsumer {
         }
     }
 
-    @RabbitListener(queues = "fulfillment.orders")
+    @RabbitListener(queues = "#{@orderMessagingDestinations.fulfillmentQueue()}")
     public void receiveMessage(
             String payload,
             @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey,
