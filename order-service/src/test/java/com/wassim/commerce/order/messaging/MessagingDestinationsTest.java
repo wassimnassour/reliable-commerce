@@ -2,6 +2,8 @@ package com.wassim.commerce.order.messaging;
 
 import com.wassim.commerce.order.config.RabbitMqConfig;
 import com.wassim.commerce.order.messaging.config.MessagingDestinations;
+import com.wassim.commerce.order.messaging.config.destinations.OrderMessagingDestinations;
+import com.wassim.commerce.order.messaging.config.destinations.PaymentMessagingDestinations;
 import com.wassim.commerce.order.messaging.config.RabbitMqConfigProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Binding;
@@ -16,36 +18,41 @@ import static org.assertj.core.api.Assertions.*;
 class MessagingDestinationsTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withInitializer(new ConfigDataApplicationContextInitializer())
-            .withUserConfiguration(RabbitMqConfig.class, MessagingDestinations.class);
+            .withUserConfiguration(RabbitMqConfig.class, MessagingDestinations.class,
+                    OrderMessagingDestinations.class, PaymentMessagingDestinations.class);
 
     @Test
     void loadsYamlAndResolvesTheSameNamesAsTheDeclaredTopology() {
         contextRunner.run(context -> {
             assertThat(context).hasNotFailed().hasSingleBean(MessagingDestinations.class);
             var destinations = context.getBean(MessagingDestinations.class);
-            assertThat(destinations.ordersExchange()).isEqualTo("commerce.events");
-            assertThat(destinations.exchange("payments")).isEqualTo("payment.events");
-            assertThat(destinations.fulfillmentOrdersQueue()).isEqualTo("fulfillment.orders");
+            var orders = context.getBean(OrderMessagingDestinations.class);
+            var payments = context.getBean(PaymentMessagingDestinations.class);
+            assertThat(orders.exchange()).isEqualTo("commerce.events");
+            assertThat(payments.exchange()).isEqualTo("payment.events");
+            assertThat(orders.fulfillmentQueue()).isEqualTo("fulfillment.orders");
             assertThat(destinations.queue("notifications-orders")).isEqualTo("notifications.orders");
             assertThat(destinations.queue("analytics-orders")).isEqualTo("analytics.orders");
-            assertThat(destinations.queue("fulfillment-payments")).isEqualTo("fulfillment.payments");
-            assertThat(destinations.orderCreatedRoutingKey()).isEqualTo("order.created");
-            assertThat(destinations.routingKey("payments", "payment.completed")).isEqualTo("payment.completed");
+            assertThat(payments.fulfillmentQueue()).isEqualTo("fulfillment.payments");
+            assertThat(orders.createdRoutingKey()).isEqualTo("order.created");
+            assertThat(orders.cancelledRoutingKey()).isEqualTo("order.cancelled");
+            assertThat(payments.completedRoutingKey()).isEqualTo("payment.completed");
             assertThat(destinations.routingKey("orders", "order.*")).isEqualTo("order.*");
 
             var topology = context.getBean(Declarables.class);
             assertThat(topology.getDeclarablesByType(Exchange.class)).extracting(Exchange::getName)
-                    .containsExactlyInAnyOrder(destinations.ordersExchange(), destinations.exchange("payments"));
-            assertThat(topology.getDeclarablesByType(Queue.class)).hasSize(4)
+                    .containsExactlyInAnyOrder(orders.exchange(), payments.exchange(),
+                            destinations.exchange("orders-dead-letter"));
+            assertThat(topology.getDeclarablesByType(Queue.class)).hasSize(5)
                     .allSatisfy(queue -> {
                         assertThat(queue.isDurable()).isTrue();
                         assertThat(queue.getArguments()).containsEntry("x-queue-type", "quorum");
                     });
-            assertThat(topology.getDeclarablesByType(Binding.class)).hasSize(6)
+            assertThat(topology.getDeclarablesByType(Binding.class)).hasSize(7)
                     .anySatisfy(binding -> {
-                        assertThat(binding.getExchange()).isEqualTo(destinations.ordersExchange());
-                        assertThat(binding.getDestination()).isEqualTo(destinations.fulfillmentOrdersQueue());
-                        assertThat(binding.getRoutingKey()).isEqualTo(destinations.orderCreatedRoutingKey());
+                        assertThat(binding.getExchange()).isEqualTo(orders.exchange());
+                        assertThat(binding.getDestination()).isEqualTo(orders.fulfillmentQueue());
+                        assertThat(binding.getRoutingKey()).isEqualTo(orders.createdRoutingKey());
                     });
         });
     }
@@ -61,9 +68,9 @@ class MessagingDestinationsTest {
                 "commerce.messaging.exchanges[0].subscriptions[0].routing-keys[0]=order.created"
         ).run(context -> {
             assertThat(context).hasNotFailed();
-            var destinations = context.getBean(MessagingDestinations.class);
-            assertThat(destinations.ordersExchange()).isEqualTo("custom.events");
-            assertThat(destinations.fulfillmentOrdersQueue()).isEqualTo("custom.orders");
+            var orders = context.getBean(OrderMessagingDestinations.class);
+            assertThat(orders.exchange()).isEqualTo("custom.events");
+            assertThat(orders.fulfillmentQueue()).isEqualTo("custom.orders");
             assertThat(context.getBean(Declarables.class).getDeclarablesByType(Exchange.class))
                     .singleElement().isInstanceOf(org.springframework.amqp.core.DirectExchange.class);
         });

@@ -2,7 +2,7 @@ package com.wassim.commerce.order.order.service.impl;
 
 import com.wassim.commerce.order.common.idempotency.IdempotencyService;
 import com.wassim.commerce.order.exaptions.BadRequest;
-import com.wassim.commerce.order.messaging.config.MessagingDestinations;
+import com.wassim.commerce.order.messaging.config.destinations.OrderMessagingDestinations;
 import com.wassim.commerce.order.messaging.outbox.events.OrderCancelEvent;
 import com.wassim.commerce.order.messaging.outbox.events.OrderCreatedEvent;
 import com.wassim.commerce.order.messaging.outbox.records.PublishRequestRecord;
@@ -43,7 +43,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
     private final IdempotencyService idempotencyService;
-    private final MessagingDestinations messagingDestinations;
+    private final OrderMessagingDestinations messagingDestinations;
     private final OutboxService outboxService;
 
     @Transactional
@@ -112,7 +112,7 @@ public class OrderServiceImpl implements OrderService {
 
         CreateOrderResponse response = orderMapper.toCreateOrderResponse(order);
 
-        outboxService.publish(PublishRequestRecord.builder().aggregateType("orders").routingKey( messagingDestinations.orderCreatedRoutingKey()).payload(new OrderCreatedEvent(order.getId())).exchange(messagingDestinations.ordersExchange()).aggregateId(String.valueOf(order.getId())).build());
+        outboxService.publish(PublishRequestRecord.builder().aggregateType("orders").routingKey( messagingDestinations.createdRoutingKey()).payload(new OrderCreatedEvent(order.getId())).exchange(messagingDestinations.exchange()).aggregateId(String.valueOf(order.getId())).build());
         return response;
 
     }
@@ -151,8 +151,8 @@ public class OrderServiceImpl implements OrderService {
 
         orderRepository.save(order);
         outboxService.publish(
-                 PublishRequestRecord.builder().aggregateType("orders").aggregateId(String.valueOf( order.getId())).payload(new OrderCancelEvent( orderId,userId)).routingKey(  messagingDestinations.routingKey("orders","order.cancelled"))
-                         .exchange( messagingDestinations.exchange("orders")).build()
+                 PublishRequestRecord.builder().aggregateType("orders").aggregateId(String.valueOf( order.getId())).payload(new OrderCancelEvent( orderId,userId)).routingKey(  messagingDestinations.cancelledRoutingKey())
+                         .exchange( messagingDestinations.exchange()).build()
         );
         return orderMapper.toCancelOrderResponse(order);
     }
