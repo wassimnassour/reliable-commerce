@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.wassim.commerce.order.messaging.handlers.EventHandler;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -25,6 +26,7 @@ public class PaymentCompletedEventHandler implements EventHandler {
 		return paymentMessagingDestinations.completedRoutingKey();
 	}
 
+    @Transactional
 	@Override
     public void handle(String payload ,String messageId) {
         System.out.println("Recieved PaymentCompletedEvent" + payload);
