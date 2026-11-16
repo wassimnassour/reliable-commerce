@@ -80,3 +80,6 @@ databaseChangeLog:
   - include:
       file: 028-move-stock-to-inventory.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 029-unique-inventory-reservation.yaml
+      relativeToChangelogFile: true

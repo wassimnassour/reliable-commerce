@@ -11,7 +11,8 @@ import java.time.Instant;
 @Getter
 @Setter
 @Entity
-@Table(name = "inventory_reservations")
+@Table(name = "inventory_reservations", uniqueConstraints = @UniqueConstraint(
+        name = "uq_inventory_reservation_order_product", columnNames = {"order_id", "product_id"}))
 public class InventoryReservation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
