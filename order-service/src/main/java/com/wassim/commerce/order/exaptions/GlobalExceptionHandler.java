@@ -51,6 +51,16 @@ public class GlobalExceptionHandler {
         return false;
     }
 
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<Map<String, Object>> handleInsufficientStock(InsufficientStockException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.CONFLICT.value());
+        response.put("error", "Conflict");
+        response.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
     @ExceptionHandler(IdempotencyConflictException.class)
     public ResponseEntity<Map<String, Object>> handleIdempotencyConflict(IdempotencyConflictException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
