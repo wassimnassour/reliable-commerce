@@ -1,0 +1,28 @@
+package com.wassim.commerce.order.inventory.persistence;
+
+import com.wassim.commerce.order.inventory.domain.Inventory;
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
+import java.util.Optional;
+
+public interface InventoryRepository extends JpaRepository<Inventory, Long> {
+    @Query("select i from Inventory i where i.product.id = :productId")
+    Optional<Inventory> findByProductId(@Param("productId") Long productId);
+
+    @Modifying
+    @Query(value = """
+            UPDATE inventory
+            SET quantity = quantity - :quantity, version = version + 1
+            WHERE product_id = :productId AND :quantity > 0 AND quantity >= :quantity
+              AND EXISTS (SELECT 1 FROM products WHERE id = :productId AND status = true)
+            """, nativeQuery = true)
+    int decreaseTheStock(@Param("quantity") int quantity, @Param("productId") Long productId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = """
+            UPDATE inventory
+            SET quantity = quantity + :quantity, version = version + 1
+            WHERE product_id = :productId AND :quantity > 0
+            """, nativeQuery = true)
+    int increaseTheStock(@Param("quantity") int quantity, @Param("productId") Long productId);
+}

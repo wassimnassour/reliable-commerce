@@ -1,7 +1,8 @@
 package com.wassim.commerce.order.order.service;
 
+import com.wassim.commerce.order.inventory.domain.Inventory;
+
 import com.wassim.commerce.order.TestcontainersConfiguration;
-import com.wassim.commerce.order.exaptions.BadRequest;
 import com.wassim.commerce.order.order.dto.request.CreateRequestDto;
 import com.wassim.commerce.order.order.dto.response.CancelOrderResponse;
 import com.wassim.commerce.order.order.enums.EOrderStatus;
@@ -69,7 +70,10 @@ class OrderServiceTest {
         Product product = new Product();
         product.setProductName("Stock test product");
         product.setProductPrice(new BigDecimal("19.99"));
-        product.setProductQuantity(stock);
+        Inventory inventory = new Inventory();
+        inventory.setProduct(product);
+        inventory.setQuantity(stock);
+        product.setInventory(inventory);
         product.setStatus(true);
         product = products.saveAndFlush(product);
         productIds.add(product.getId());
@@ -85,7 +89,7 @@ class OrderServiceTest {
     }
 
     int stock(Product product) {
-        return products.findById(product.getId()).orElseThrow().getProductQuantity();
+        return products.findById(product.getId()).orElseThrow().getInventory().getQuantity();
     }
 
     long orderCount() {
@@ -120,11 +124,11 @@ class OrderServiceTest {
         Product second = product(1);
         var request = request(item(first, 2), item(second, 2));
         assertThatThrownBy(() -> service.createOrder("failed-key", userId, request))
-                .isInstanceOf(BadRequest.class);
+                .isInstanceOf(com.wassim.commerce.order.exaptions.InsufficientStockException.class);
         assertThat(keys.findByUserIdAndOperationAndIdempotencyKey(userId, "POST /orders", "failed-key")).isNull();
         assertThat(stock(first)).isEqualTo(10);
         assertThat(orderCount()).isZero();
-        second.setProductQuantity(5);
+        second.getInventory().setQuantity(5);
         products.saveAndFlush(second);
         var result = service.createOrder("failed-key", userId, request);
         assertThat(result.orderId()).isNotNull();
@@ -151,7 +155,7 @@ class OrderServiceTest {
                     assertThat(attempt.get(20, TimeUnit.SECONDS)).isNotNull();
                     successes++;
                 } catch (ExecutionException ex) {
-                    assertThat(ex.getCause()).isInstanceOf(BadRequest.class)
+                    assertThat(ex.getCause()).isInstanceOf(com.wassim.commerce.order.exaptions.InsufficientStockException.class)
                             .hasMessageContaining("Insufficient stock");
                     rejected++;
                 }

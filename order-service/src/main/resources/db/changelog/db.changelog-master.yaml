@@ -77,3 +77,6 @@ databaseChangeLog:
   - include:
       file: 027-create-inventory-reservations.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 028-move-stock-to-inventory.yaml
+      relativeToChangelogFile: true

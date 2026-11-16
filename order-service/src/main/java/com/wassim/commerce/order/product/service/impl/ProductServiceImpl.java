@@ -34,6 +34,7 @@ public class ProductServiceImpl implements ProductService {
         this.productMapper = productMapper;
     }
 
+     @Transactional
      public ProductResponse createProduct(CreateProductDto productDto) {
         try{
             Product product = productMapper.toProduct(productDto);
@@ -47,6 +48,7 @@ public class ProductServiceImpl implements ProductService {
      }
 
     @Override
+    @Transactional
     public ProductResponse getProductById(Long id) {
          Product product= productRepository.findById(id).orElseThrow(
                  ()-> new NotFoundException("Can't find product with id " + id)
@@ -59,6 +61,7 @@ public class ProductServiceImpl implements ProductService {
 
 
     @Override
+    @Transactional
     public ProductSliceResponse getAllProducts(ProductFilter productFilter) {
         Specification<Product> specification =  Specification.where(
                 ProductSpecification.productNameLike(productFilter.name())

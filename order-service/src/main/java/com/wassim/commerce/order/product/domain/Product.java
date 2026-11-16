@@ -1,6 +1,7 @@
 package com.wassim.commerce.order.product.domain;
 
 import com.wassim.commerce.order.inventory.domain.InventoryReservation;
+import com.wassim.commerce.order.inventory.domain.Inventory;
 import com.wassim.commerce.order.order.domain.OrderItems;
 import com.wassim.commerce.order.enums.Currency;
 
@@ -45,6 +46,9 @@ public class Product {
 
     @Version
     private Long version;
+
+    @OneToOne(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Inventory inventory;
 
     @OneToMany(mappedBy = "product")
     private List<InventoryReservation> inventoryReservations;

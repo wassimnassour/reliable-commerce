@@ -1,5 +1,7 @@
 package com.wassim.commerce.order;
 
+import com.wassim.commerce.order.inventory.domain.Inventory;
+
 import com.wassim.commerce.order.enums.Currency;
 import com.wassim.commerce.order.product.persistence.ProductRepository;
 import com.wassim.commerce.order.product.domain.Product;
@@ -58,7 +60,7 @@ class ProductEndpointTests {
         assertEquals("Coffee", saved.getProductName());
         assertEquals("Beans", saved.getProductDescription());
         assertEquals(new BigDecimal("25.10"), saved.getProductPrice());
-        assertEquals(0, saved.getProductQuantity());
+        assertEquals(0, saved.getInventory().getQuantity());
         assertEquals(Currency.MAD, saved.getCurrency());
         assertEquals(true, saved.getStatus());
         assertTrue(body.get("status").asBoolean());
@@ -154,7 +156,10 @@ class ProductEndpointTests {
         product.setProductName("Coffee");
         product.setProductDescription("Beans");
         product.setProductPrice(new BigDecimal("25.10"));
-        product.setProductQuantity(7);
+        Inventory inventory = new Inventory();
+        inventory.setProduct(product);
+        inventory.setQuantity(7);
+        product.setInventory(inventory);
         product.setStatus(true);
         Product saved = repository.saveAndFlush(product);
 
@@ -297,7 +302,7 @@ class ProductEndpointTests {
         assertEquals(new BigDecimal("78983.00"), saved.getProductPrice());
         assertEquals("Hello", saved.getProductDescription());
         assertEquals("Original", saved.getProductName());
-        assertEquals(7, saved.getProductQuantity());
+        assertEquals(7, saved.getInventory().getQuantity());
         assertEquals(Currency.MAD, saved.getCurrency());
         assertEquals(true, saved.getStatus());
         assertTrue(json.readTree(response.body()).get("status").asBoolean());
@@ -364,7 +369,7 @@ class ProductEndpointTests {
         assertEquals(product.getVersion() + 1, saved.getVersion().longValue());
         assertEquals("Original", saved.getProductName());
         assertEquals(new BigDecimal("25.10"), saved.getProductPrice());
-        assertEquals(7, saved.getProductQuantity());
+        assertEquals(7, saved.getInventory().getQuantity());
     }
 
     private HttpResponse<String> patch(long id, String body) throws Exception {
@@ -379,7 +384,10 @@ class ProductEndpointTests {
         Product product = new Product();
         product.setProductName(name);
         product.setProductPrice(new BigDecimal(price));
-        product.setProductQuantity(7);
+        Inventory inventory = new Inventory();
+        inventory.setProduct(product);
+        inventory.setQuantity(7);
+        product.setInventory(inventory);
         product.setStatus(true);
         return repository.saveAndFlush(product);
     }
