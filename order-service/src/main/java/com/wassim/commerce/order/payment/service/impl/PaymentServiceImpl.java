@@ -1,6 +1,10 @@
 package com.wassim.commerce.order.payment.service.impl;
 
 import com.wassim.commerce.order.exaptions.BadRequest;
+import com.wassim.commerce.order.messaging.config.destinations.PaymentMessagingDestinations;
+import com.wassim.commerce.order.messaging.outbox.events.PaymentCompletedEvent;
+import com.wassim.commerce.order.messaging.outbox.records.PublishRequestRecord;
+import com.wassim.commerce.order.messaging.outbox.service.OutboxService;
 import com.wassim.commerce.order.order.domain.Order;
 import com.wassim.commerce.order.order.enums.EOrderStatus;
 import com.wassim.commerce.order.order.presisstance.OrderRepository;
@@ -20,6 +24,9 @@ public class PaymentServiceImpl implements PaymentService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
+    private final OutboxService outboxService;
+    private final PaymentMessagingDestinations paymentMessagingDestinations;
+
 
     @Override
     @Transactional
@@ -73,8 +80,14 @@ public class PaymentServiceImpl implements PaymentService {
 
         payment.setStatus(result);
 
+
+
         if (result == EPaymentStatus.SUCCEEDED) {
             order.setOrderStatus(EOrderStatus.PAID);
         }
+
+        outboxService.publish(
+                PublishRequestRecord.builder().payload(PaymentCompletedEvent.builder().orderId(order.getId()).status(payment.getStatus()).paymentId(payment.getId()).build()).routingKey(paymentMessagingDestinations.completedRoutingKey()).exchange(paymentMessagingDestinations.exchange()).aggregateType("Payments").aggregateId(String.valueOf(payment.getId())).build()
+        );
     }
 }

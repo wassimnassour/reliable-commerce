@@ -1,12 +1,10 @@
 package com.wassim.commerce.order.messaging.producer;
 
-
-import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.CompletableFuture;
+
 
 @Service
 public class MessageProducer {

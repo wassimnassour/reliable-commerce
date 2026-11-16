@@ -1,9 +1,10 @@
 package com.wassim.commerce.order.messaging.handlers.OrderEventHandler;
 
-import com.wassim.commerce.order.messaging.config.MessagingDestinations;
+import com.wassim.commerce.order.messaging.config.destinations.OrderMessagingDestinations;
 import com.wassim.commerce.order.messaging.handlers.EventHandler;
 import com.wassim.commerce.order.messaging.inbox.persistence.InboxRepository;
 import com.wassim.commerce.order.messaging.outbox.events.OrderCancelEvent;
+import com.wassim.commerce.order.order.domain.Order;
 import jakarta.transaction.Transactional;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import lombok.RequiredArgsConstructor;
@@ -17,13 +18,13 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class OrderCancelledHandler implements EventHandler {
 
-    private final MessagingDestinations messagingDestinations;
+    private final OrderMessagingDestinations messagingDestinations;
     private final ObjectMapper objectMapper;
     private final InboxRepository inboxRepository;
 
     @Override
     public String routingKey() {
-        return messagingDestinations.orderCancelledRoutingKey();
+        return messagingDestinations.cancelledRoutingKey();
     }
 
     @Override

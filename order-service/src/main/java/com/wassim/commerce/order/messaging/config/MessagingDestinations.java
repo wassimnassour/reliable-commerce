@@ -53,21 +53,7 @@ public class MessagingDestinations {
         return key;
     }
 
-    public String ordersExchange() {
-        return exchange("orders");
-    }
-
-    public String orderCreatedRoutingKey() {
-        return routingKey("orders", "order.created");
-    }
-    public String orderCancelledRoutingKey() {
-        return routingKey("orders", "order.cancelled");
-    }
-
-
-    public String fulfillmentOrdersQueue() {
-        return queue("fulfillment-orders");
-    }
+ 
 
     private static String resolve(Map<String, String> destinations, String key, String kind) {
         String name = key == null ? null : destinations.get(key);
