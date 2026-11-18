@@ -141,7 +141,7 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderStatus(EOrderStatus.CANCELED);
 
         order.getOrderItems().forEach(item ->
-                inventoryServiceImpl.release(item.getProduct().getId(), item.getQuantity()));
+                inventoryServiceImpl.release(orderId, item.getProduct().getId()));
 
         orderRepository.save(order);
         outboxService.publish(

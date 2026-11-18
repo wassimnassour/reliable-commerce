@@ -26,14 +26,14 @@ public interface ProductMapper {
     default void initializeInventory(CreateProductDto dto, @MappingTarget Product product) {
         var inventory = new Inventory();
         inventory.setProduct(product);
-        inventory.setQuantity(dto.stockQuantity());
+        inventory.setTotalQuantity(dto.stockQuantity());
         product.setInventory(inventory);
     }
 
     @Mapping(target = "name", source = "productName")
     @Mapping(target = "description", source = "productDescription")
     @Mapping(target = "price", source = "productPrice")
-    @Mapping(target = "stockQuantity", source = "inventory.quantity", defaultValue = "0")
+    @Mapping(target = "stockQuantity", source = "inventory.availableQuantity", defaultValue = "0")
     ProductResponse toResponse(Product product);
 
 

@@ -16,7 +16,7 @@ public class GenerateProducts {
         product.setProductDescription("Product Description");
         Inventory inventory = new Inventory();
         inventory.setProduct(product);
-        inventory.setQuantity(100);
+        inventory.setTotalQuantity(100);
         product.setInventory(inventory);
         return product;
     };

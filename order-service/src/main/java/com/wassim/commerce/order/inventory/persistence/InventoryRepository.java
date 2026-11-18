@@ -11,33 +11,24 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     @Modifying
     @Query(value = """
-            UPDATE inventory
-            SET quantity = quantity - :quantity, version = version + 1
-            WHERE product_id = :productId AND :quantity > 0 AND quantity >= :quantity
-              AND EXISTS (SELECT 1 FROM products WHERE id = :productId AND status = true)
-            """, nativeQuery = true)
-    int decreaseTheStock(@Param("quantity") int quantity, @Param("productId") Long productId);
-
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query(value = """
-            UPDATE inventory
-            SET quantity = quantity + :quantity, version = version + 1
-            WHERE product_id = :productId AND :quantity > 0
-            """, nativeQuery = true)
-    int increaseTheStock(@Param("quantity") int quantity, @Param("productId") Long productId);
-
-
-    @Modifying
-    @Query(value = """
     UPDATE inventory
     SET reserved_quantity = reserved_quantity + :quantity,
         version = version + 1
     WHERE product_id = :productId
       AND :quantity > 0
       AND total_quantity - reserved_quantity >= :quantity
+      AND EXISTS (SELECT 1 FROM products WHERE id = :productId AND status = true)
     """, nativeQuery = true)
     int reserveStock(
             @Param("productId") Long productId,
             @Param("quantity") int quantity
     );
+    @Modifying
+    @Query(value = """
+            UPDATE inventory
+            SET reserved_quantity = reserved_quantity - :quantity, version = version + 1
+            WHERE product_id = :productId AND :quantity > 0 AND reserved_quantity >= :quantity
+            """, nativeQuery = true)
+    int releaseStock(@Param("productId") Long productId, @Param("quantity") int quantity);
 }
+

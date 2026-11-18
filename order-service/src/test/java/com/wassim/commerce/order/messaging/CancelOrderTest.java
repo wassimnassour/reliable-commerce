@@ -94,7 +94,7 @@ class CancelOrderTest {
         int stockBefore = productRepository
                 .findById(product.getId())
                 .orElseThrow()
-                .getInventory().getQuantity();
+                .getInventory().getAvailableQuantity();
 
         EOrderStatus orderStatusBefore = orderRepository
                 .findById(orderId)
@@ -120,7 +120,7 @@ class CancelOrderTest {
                     assertThat(
                             productRepository.findById(product.getId())
                                     .orElseThrow()
-                                    .getInventory().getQuantity()
+                                    .getInventory().getAvailableQuantity()
                     ).isEqualTo(stockBefore + 1);
 
                     assertThat(outboxRepository.count())
@@ -142,7 +142,7 @@ class CancelOrderTest {
         assertThat(
                 productRepository.findById(product.getId())
                         .orElseThrow()
-                        .getInventory().getQuantity()
+                        .getInventory().getAvailableQuantity()
         ).isEqualTo(stockBefore);
 
         assertThat(outboxRepository.count())

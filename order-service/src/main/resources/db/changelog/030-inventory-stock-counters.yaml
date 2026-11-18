@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 030-inventory-stock-counters
+      author: wassim
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: |
+              LOCK TABLE inventory, inventory_reservations IN ACCESS EXCLUSIVE MODE;
+              ALTER TABLE inventory RENAME COLUMN quantity TO total_quantity;
+              ALTER TABLE inventory ADD COLUMN reserved_quantity integer NOT NULL DEFAULT 0;
+              UPDATE inventory i
+              SET reserved_quantity = r.quantity,
+                  total_quantity = i.total_quantity + r.quantity
+              FROM (
+                  SELECT product_id, SUM(quantity)::integer AS quantity
+                  FROM inventory_reservations
+                  WHERE status = 'RESERVED'
+                  GROUP BY product_id
+              ) r
+              WHERE i.product_id = r.product_id;
+              ALTER TABLE inventory ADD CONSTRAINT ck_inventory_counters
+                  CHECK (reserved_quantity >= 0 AND total_quantity >= reserved_quantity);
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE inventory DROP CONSTRAINT ck_inventory_counters;
+              UPDATE inventory SET total_quantity = total_quantity - reserved_quantity;
+              ALTER TABLE inventory DROP COLUMN reserved_quantity;
+              ALTER TABLE inventory RENAME COLUMN total_quantity TO quantity;

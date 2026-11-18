@@ -60,7 +60,7 @@ class ProductEndpointTests {
         assertEquals("Coffee", saved.getProductName());
         assertEquals("Beans", saved.getProductDescription());
         assertEquals(new BigDecimal("25.10"), saved.getProductPrice());
-        assertEquals(0, saved.getInventory().getQuantity());
+        assertEquals(0, saved.getInventory().getAvailableQuantity());
         assertEquals(Currency.MAD, saved.getCurrency());
         assertEquals(true, saved.getStatus());
         assertTrue(body.get("status").asBoolean());
@@ -158,7 +158,7 @@ class ProductEndpointTests {
         product.setProductPrice(new BigDecimal("25.10"));
         Inventory inventory = new Inventory();
         inventory.setProduct(product);
-        inventory.setQuantity(7);
+        inventory.setTotalQuantity(7);
         product.setInventory(inventory);
         product.setStatus(true);
         Product saved = repository.saveAndFlush(product);
@@ -302,7 +302,7 @@ class ProductEndpointTests {
         assertEquals(new BigDecimal("78983.00"), saved.getProductPrice());
         assertEquals("Hello", saved.getProductDescription());
         assertEquals("Original", saved.getProductName());
-        assertEquals(7, saved.getInventory().getQuantity());
+        assertEquals(7, saved.getInventory().getAvailableQuantity());
         assertEquals(Currency.MAD, saved.getCurrency());
         assertEquals(true, saved.getStatus());
         assertTrue(json.readTree(response.body()).get("status").asBoolean());
@@ -369,7 +369,7 @@ class ProductEndpointTests {
         assertEquals(product.getVersion() + 1, saved.getVersion().longValue());
         assertEquals("Original", saved.getProductName());
         assertEquals(new BigDecimal("25.10"), saved.getProductPrice());
-        assertEquals(7, saved.getInventory().getQuantity());
+        assertEquals(7, saved.getInventory().getAvailableQuantity());
     }
 
     private HttpResponse<String> patch(long id, String body) throws Exception {
@@ -386,7 +386,7 @@ class ProductEndpointTests {
         product.setProductPrice(new BigDecimal(price));
         Inventory inventory = new Inventory();
         inventory.setProduct(product);
-        inventory.setQuantity(7);
+        inventory.setTotalQuantity(7);
         product.setInventory(inventory);
         product.setStatus(true);
         return repository.saveAndFlush(product);

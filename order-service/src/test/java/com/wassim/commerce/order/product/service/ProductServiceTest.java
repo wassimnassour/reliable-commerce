@@ -56,7 +56,7 @@ class ProductServiceTest {
         product.setProductPrice(new BigDecimal("100.00"));
         Inventory inventory = new Inventory();
         inventory.setProduct(product);
-        inventory.setQuantity(1);
+        inventory.setTotalQuantity(1);
         product.setInventory(inventory);
         product.setStatus(true);
         Product saved = productRepository.saveAndFlush(product);

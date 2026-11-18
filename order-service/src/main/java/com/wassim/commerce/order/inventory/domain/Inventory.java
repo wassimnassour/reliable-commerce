@@ -19,7 +19,14 @@ public class Inventory {
     private Product product;
 
     @Column(nullable = false)
-    private Integer quantity = 0;
+    private Integer totalQuantity = 0;
+
+    @Column(nullable = false)
+    private Integer reservedQuantity = 0;
+
+    public Integer getAvailableQuantity() {
+        return totalQuantity - reservedQuantity;
+    }
 
     @Version
     private Long version;

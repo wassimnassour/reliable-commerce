@@ -5,5 +5,5 @@ import com.wassim.commerce.order.product.domain.Product;
 
 public interface InventoryService {
  void  reserve(Order order , Product product ,int quantity);
- void release(Long productId, int quantity);
+ void release(Long orderId, Long productId);
 }
