@@ -13,9 +13,9 @@ import java.util.Optional;
 @Repository
 public interface InventoryReservationRepository extends JpaRepository<InventoryReservation, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
+    @Query(value = """
     SELECT i FROM InventoryReservation i
-    WHERE i.orderId = :orderId AND i.productId = :productId
+    WHERE i.order.id = :orderId AND i.product.id = :productId
     """)
     Optional<InventoryReservation> findForUpdate(@Param("orderId") Long orderId,
                                               @Param("productId") Long productId);

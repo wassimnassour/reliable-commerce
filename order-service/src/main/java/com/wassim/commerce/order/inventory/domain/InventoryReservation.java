@@ -1,28 +1,34 @@
 package com.wassim.commerce.order.inventory.domain;
 
 import com.wassim.commerce.order.inventory.enums.ReservationStatus;
+import com.wassim.commerce.order.order.domain.Order;
 import com.wassim.commerce.order.product.domain.Product;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.Instant;
 
 @Getter
 @Setter
+@Builder
 @Entity
 @Table(name = "inventory_reservations", uniqueConstraints = @UniqueConstraint(
         name = "uq_inventory_reservation_order_product", columnNames = {"order_id", "product_id"}))
+@NoArgsConstructor
+@AllArgsConstructor
 public class InventoryReservation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long orderId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "order_id", nullable = false)
+    private Order order;
 
-    @Column(name = "product_id", nullable = false)
-    private Long productId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
+
 
     @Column(nullable = false)
     private Integer quantity;
@@ -31,9 +37,6 @@ public class InventoryReservation {
     @Column(nullable = false)
     private ReservationStatus status;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "product_id", nullable = false, insertable = false, updatable = false)
-    private Product product;
 
     @Column(nullable = false)
     private Instant expiresAt;

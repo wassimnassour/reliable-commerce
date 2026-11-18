@@ -2,7 +2,7 @@ package com.wassim.commerce.order.order.service.impl;
 
 import com.wassim.commerce.order.common.idempotency.IdempotencyService;
 import com.wassim.commerce.order.exaptions.BadRequest;
-import com.wassim.commerce.order.inventory.service.InventoryService;
+import com.wassim.commerce.order.inventory.service.impl.InventoryServiceImpl;
 import com.wassim.commerce.order.messaging.config.destinations.OrderMessagingDestinations;
 import com.wassim.commerce.order.messaging.outbox.events.OrderCancelEvent;
 import com.wassim.commerce.order.messaging.outbox.events.OrderCreatedEvent;
@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 @Service
 public class OrderServiceImpl implements OrderService {
     private final ProductRepository productRepository;
-    private final InventoryService inventoryService;
+    private final InventoryServiceImpl inventoryServiceImpl;
     private final OrderItemsRepository orderItemsRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
@@ -83,8 +83,6 @@ public class OrderServiceImpl implements OrderService {
                 throw new BadRequest("Product  is not available" + pr.productId());
             }
 
-            inventoryService.reserve(product.getId(), pr.quantity());
-
             OrderItems orderItems = new OrderItems();
             orderItems.setProduct(product);
             orderItems.setQuantity(pr.quantity());
@@ -103,6 +101,14 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
 
         orderItemsRepository.saveAll(orderItemsList);
+
+        for (OrderItems item : orderItemsList) {
+            inventoryServiceImpl.reserve(
+                    item.getOrder(),
+                    item.getProduct(),
+                    item.getQuantity()
+            );
+        }
 
         CreateOrderResponse response = orderMapper.toCreateOrderResponse(order);
 
@@ -135,7 +141,7 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderStatus(EOrderStatus.CANCELED);
 
         order.getOrderItems().forEach(item ->
-                inventoryService.release(item.getProduct().getId(), item.getQuantity()));
+                inventoryServiceImpl.release(item.getProduct().getId(), item.getQuantity()));
 
         orderRepository.save(order);
         outboxService.publish(
