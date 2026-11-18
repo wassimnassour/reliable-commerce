@@ -6,6 +6,7 @@ import com.wassim.commerce.order.messaging.handlers.EventHandler;
 import com.wassim.commerce.order.messaging.inbox.persistence.InboxRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Component
@@ -21,6 +22,7 @@ public class OrderCreatedHandler implements EventHandler {
         return messagingDestinations.createdRoutingKey();
     }
 
+    @Transactional
     @Override
     public void handle(String payload, String messageId) {
         inboxRepository.tryClaim(

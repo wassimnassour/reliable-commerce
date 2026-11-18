@@ -1,5 +1,7 @@
 package com.wassim.commerce.order.fixtures;
 
+import com.wassim.commerce.order.inventory.domain.Inventory;
+
 import com.wassim.commerce.order.product.domain.Product;
 
 import java.math.BigDecimal;
@@ -12,7 +14,10 @@ public class GenerateProducts {
         product.setProductPrice(price);
         product.setProductName("Product Name");
         product.setProductDescription("Product Description");
-        product.setProductQuantity(100);
+        Inventory inventory = new Inventory();
+        inventory.setProduct(product);
+        inventory.setTotalQuantity(100);
+        product.setInventory(inventory);
         return product;
     };
 

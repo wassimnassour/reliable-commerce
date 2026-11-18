@@ -1,5 +1,7 @@
 package com.wassim.commerce.order.product.service;
 
+import com.wassim.commerce.order.inventory.domain.Inventory;
+
 import com.wassim.commerce.order.TestcontainersConfiguration;
 import com.wassim.commerce.order.enums.Currency;
 import com.wassim.commerce.order.exaptions.NotFoundException;
@@ -19,7 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.transaction.annotation.Transactional;
+
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -52,7 +54,10 @@ class ProductServiceTest {
         product.setProductName("Coffee");
         product.setProductDescription("Beans");
         product.setProductPrice(new BigDecimal("100.00"));
-        product.setProductQuantity(1);
+        Inventory inventory = new Inventory();
+        inventory.setProduct(product);
+        inventory.setTotalQuantity(1);
+        product.setInventory(inventory);
         product.setStatus(true);
         Product saved = productRepository.saveAndFlush(product);
 

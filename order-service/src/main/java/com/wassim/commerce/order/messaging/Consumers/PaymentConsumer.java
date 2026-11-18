@@ -25,7 +25,7 @@ public class PaymentConsumer {
         });
     }
 
-    @RabbitListener(queues = "#{@PaymentMessagingDestinations.fulfillmentQueue()}")
+    @RabbitListener(queues = "#{@paymentMessagingDestinations.fulfillmentQueue()}")
     public void consumer(
             String payload,
             @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey,

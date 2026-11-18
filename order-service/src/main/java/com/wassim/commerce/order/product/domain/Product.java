@@ -1,5 +1,7 @@
 package com.wassim.commerce.order.product.domain;
 
+import com.wassim.commerce.order.inventory.domain.InventoryReservation;
+import com.wassim.commerce.order.inventory.domain.Inventory;
 import com.wassim.commerce.order.order.domain.OrderItems;
 import com.wassim.commerce.order.enums.Currency;
 
@@ -26,7 +28,6 @@ public class Product {
     private String productDescription;
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal productPrice;
-    private Integer productQuantity;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 3)
@@ -45,6 +46,12 @@ public class Product {
 
     @Version
     private Long version;
+
+    @OneToOne(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Inventory inventory;
+
+    @OneToMany(mappedBy = "product")
+    private List<InventoryReservation> inventoryReservations;
 
     @PrePersist
     private void prePersist() {

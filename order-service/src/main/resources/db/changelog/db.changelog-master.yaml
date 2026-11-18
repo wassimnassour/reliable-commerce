@@ -74,3 +74,15 @@ databaseChangeLog:
   - include:
       file: 026-order-currency-and-pending-payment-index.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 027-create-inventory-reservations.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 028-move-stock-to-inventory.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 029-unique-inventory-reservation.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: 030-inventory-stock-counters.yaml
+      relativeToChangelogFile: true

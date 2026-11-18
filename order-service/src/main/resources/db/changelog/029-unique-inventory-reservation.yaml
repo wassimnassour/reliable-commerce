@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 029-unique-inventory-reservation
+      author: wassim
+      changes:
+        - addUniqueConstraint:
+            tableName: inventory_reservations
+            columnNames: order_id, product_id
+            constraintName: uq_inventory_reservation_order_product
+      rollback:
+        - dropUniqueConstraint:
+            tableName: inventory_reservations
+            constraintName: uq_inventory_reservation_order_product

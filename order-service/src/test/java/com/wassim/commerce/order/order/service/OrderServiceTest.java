@@ -1,7 +1,8 @@
 package com.wassim.commerce.order.order.service;
 
+import com.wassim.commerce.order.inventory.domain.Inventory;
+
 import com.wassim.commerce.order.TestcontainersConfiguration;
-import com.wassim.commerce.order.exaptions.BadRequest;
 import com.wassim.commerce.order.order.dto.request.CreateRequestDto;
 import com.wassim.commerce.order.order.dto.response.CancelOrderResponse;
 import com.wassim.commerce.order.order.enums.EOrderStatus;
@@ -58,6 +59,7 @@ class OrderServiceTest {
 
     @AfterEach
     void cleanOwnedFixtures() {
+        jdbc.update("DELETE FROM inventory_reservations WHERE order_id IN (SELECT id FROM orders WHERE user_id = ?)", userId);
         jdbc.update("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id = ?)", userId);
         jdbc.update("DELETE FROM orders WHERE user_id = ?", userId);
         for (Long id : productIds) jdbc.update("DELETE FROM products WHERE id = ?", id);
@@ -69,7 +71,10 @@ class OrderServiceTest {
         Product product = new Product();
         product.setProductName("Stock test product");
         product.setProductPrice(new BigDecimal("19.99"));
-        product.setProductQuantity(stock);
+        Inventory inventory = new Inventory();
+        inventory.setProduct(product);
+        inventory.setTotalQuantity(stock);
+        product.setInventory(inventory);
         product.setStatus(true);
         product = products.saveAndFlush(product);
         productIds.add(product.getId());
@@ -85,7 +90,7 @@ class OrderServiceTest {
     }
 
     int stock(Product product) {
-        return products.findById(product.getId()).orElseThrow().getProductQuantity();
+        return products.findById(product.getId()).orElseThrow().getInventory().getAvailableQuantity();
     }
 
     long orderCount() {
@@ -120,11 +125,16 @@ class OrderServiceTest {
         Product second = product(1);
         var request = request(item(first, 2), item(second, 2));
         assertThatThrownBy(() -> service.createOrder("failed-key", userId, request))
-                .isInstanceOf(BadRequest.class);
+                .isInstanceOf(com.wassim.commerce.order.exaptions.InsufficientStockException.class);
         assertThat(keys.findByUserIdAndOperationAndIdempotencyKey(userId, "POST /orders", "failed-key")).isNull();
         assertThat(stock(first)).isEqualTo(10);
+        assertThat(products.findById(first.getId()).orElseThrow().getInventory().getReservedQuantity()).isZero();
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM inventory_reservations r JOIN orders o ON o.id = r.order_id
+                WHERE o.user_id = ?
+                """, Long.class, userId)).isZero();
         assertThat(orderCount()).isZero();
-        second.setProductQuantity(5);
+        second.getInventory().setTotalQuantity(5);
         products.saveAndFlush(second);
         var result = service.createOrder("failed-key", userId, request);
         assertThat(result.orderId()).isNotNull();
@@ -151,7 +161,7 @@ class OrderServiceTest {
                     assertThat(attempt.get(20, TimeUnit.SECONDS)).isNotNull();
                     successes++;
                 } catch (ExecutionException ex) {
-                    assertThat(ex.getCause()).isInstanceOf(BadRequest.class)
+                    assertThat(ex.getCause()).isInstanceOf(com.wassim.commerce.order.exaptions.InsufficientStockException.class)
                             .hasMessageContaining("Insufficient stock");
                     rejected++;
                 }
@@ -241,6 +251,14 @@ class OrderServiceTest {
         assertThat(order.status()).isEqualTo(EOrderStatus.PENDING_PAYMENT);
         assertThat(stock(product)).isEqualTo(7);
 
+        Inventory reserved = products.findById(product.getId()).orElseThrow().getInventory();
+        assertThat(reserved.getTotalQuantity()).isEqualTo(10);
+        assertThat(reserved.getReservedQuantity()).isEqualTo(3);
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM inventory_reservations
+                WHERE order_id = ? AND status = 'RESERVED' AND expires_at > CURRENT_TIMESTAMP
+                """, Long.class, order.orderId())).isEqualTo(1);
+
         CancelOrderResponse canceled = service.cancelOrder(userId, order.orderId());
         assertThat(stock(product)).isEqualTo(10);
         assertThat(canceled.id()).isEqualTo(order.orderId());
@@ -252,6 +270,12 @@ class OrderServiceTest {
         assertThat(stock(product)).isEqualTo(10);
         assertThat(orders.findById(order.orderId()).orElseThrow().getOrderStatus())
                 .isEqualTo(EOrderStatus.CANCELED);
+        Inventory released = products.findById(product.getId()).orElseThrow().getInventory();
+        assertThat(released.getTotalQuantity()).isEqualTo(10);
+        assertThat(released.getReservedQuantity()).isZero();
+        assertThat(jdbc.queryForObject("""
+                SELECT status FROM inventory_reservations WHERE order_id = ?
+                """, String.class, order.orderId())).isEqualTo("RELEASED");
 
     }
 

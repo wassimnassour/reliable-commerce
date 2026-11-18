@@ -2,6 +2,7 @@ package com.wassim.commerce.order.order.service.impl;
 
 import com.wassim.commerce.order.common.idempotency.IdempotencyService;
 import com.wassim.commerce.order.exaptions.BadRequest;
+import com.wassim.commerce.order.inventory.service.impl.InventoryServiceImpl;
 import com.wassim.commerce.order.messaging.config.destinations.OrderMessagingDestinations;
 import com.wassim.commerce.order.messaging.outbox.events.OrderCancelEvent;
 import com.wassim.commerce.order.messaging.outbox.events.OrderCreatedEvent;
@@ -29,7 +30,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import java.util.stream.Collectors;
@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 @Service
 public class OrderServiceImpl implements OrderService {
     private final ProductRepository productRepository;
+    private final InventoryServiceImpl inventoryServiceImpl;
     private final OrderItemsRepository orderItemsRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
@@ -82,15 +83,6 @@ public class OrderServiceImpl implements OrderService {
                 throw new BadRequest("Product  is not available" + pr.productId());
             }
 
-            if (pr.quantity() > product.getProductQuantity()) {
-                throw new BadRequest("Insufficient stock for this product" + pr.productId());
-            }
-
-            int affectedProductRows = productRepository.decreaseTheStock(pr.quantity(), product.getId());
-            if (affectedProductRows != 1) {
-                throw new BadRequest("Insufficient stock for this product --- " + pr.productId());
-            }
-
             OrderItems orderItems = new OrderItems();
             orderItems.setProduct(product);
             orderItems.setQuantity(pr.quantity());
@@ -109,6 +101,14 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
 
         orderItemsRepository.saveAll(orderItemsList);
+
+        for (OrderItems item : orderItemsList) {
+            inventoryServiceImpl.reserve(
+                    item.getOrder(),
+                    item.getProduct(),
+                    item.getQuantity()
+            );
+        }
 
         CreateOrderResponse response = orderMapper.toCreateOrderResponse(order);
 
@@ -140,14 +140,8 @@ public class OrderServiceImpl implements OrderService {
 
         order.setOrderStatus(EOrderStatus.CANCELED);
 
-        order.getOrderItems().forEach(orderItem -> {
-
-            Product product  = productRepository.findById(orderItem.getProduct().getId()).orElseThrow(
-                    ()->  new BadRequest("Product with id " + orderItem.getProduct().getId() + " is not found")
-            );
-            product.setProductQuantity(product.getProductQuantity() + orderItem.getQuantity());
-            productRepository.save(product);
-        });
+        order.getOrderItems().forEach(item ->
+                inventoryServiceImpl.release(orderId, item.getProduct().getId()));
 
         orderRepository.save(order);
         outboxService.publish(
