@@ -1,6 +1,6 @@
 package com.wassim.commerce.order.inventory.service.impl;
 import com.wassim.commerce.order.inventory.domain.InventoryReservation;
-import com.wassim.commerce.order.inventory.enums.ReservationStatus;
+import com.wassim.commerce.order.inventory.enums.EReservationStatus;
 import com.wassim.commerce.order.inventory.persistence.InventoryRepository;
 import com.wassim.commerce.order.inventory.persistence.InventoryReservationRepository;
 import com.wassim.commerce.order.order.domain.Order;
@@ -73,7 +73,7 @@ public class InventoryExpirationService {
 
         boolean hasExpiredReservation = reservations.stream()
                 .anyMatch(r ->
-                        r.getStatus() == ReservationStatus.RESERVED
+                        r.getStatus() == EReservationStatus.RESERVED
                                 && !r.getExpiresAt().isAfter(now)
                 );
 
@@ -83,7 +83,7 @@ public class InventoryExpirationService {
 
         for (InventoryReservation reservation : reservations) {
 
-            if (reservation.getStatus() != ReservationStatus.RESERVED) {
+            if (reservation.getStatus() != EReservationStatus.RESERVED) {
                 continue;
             }
 
@@ -101,7 +101,7 @@ public class InventoryExpirationService {
                 );
             }
 
-            reservation.setStatus(ReservationStatus.EXPIRED);
+            reservation.setStatus(EReservationStatus.EXPIRED);
         }
 
         order.setOrderStatus(EOrderStatus.EXPIRED);

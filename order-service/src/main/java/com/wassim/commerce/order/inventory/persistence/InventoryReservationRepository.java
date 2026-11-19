@@ -1,7 +1,7 @@
 package com.wassim.commerce.order.inventory.persistence;
 
 import com.wassim.commerce.order.inventory.domain.InventoryReservation;
-import com.wassim.commerce.order.inventory.enums.ReservationStatus;
+import com.wassim.commerce.order.inventory.enums.EReservationStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -24,7 +24,7 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
                                               @Param("productId") Long productId);
 
     boolean existsByOrder_IdAndStatusAndExpiresAtLessThanEqual(
-            Long orderId, ReservationStatus status, Instant deadline);
+            Long orderId, EReservationStatus status, Instant deadline);
 
     @Query("""
     SELECT r
