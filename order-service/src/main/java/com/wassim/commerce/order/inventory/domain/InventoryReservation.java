@@ -1,6 +1,6 @@
 package com.wassim.commerce.order.inventory.domain;
 
-import com.wassim.commerce.order.inventory.enums.ReservationStatus;
+import com.wassim.commerce.order.inventory.enums.EReservationStatus;
 import com.wassim.commerce.order.order.domain.Order;
 import com.wassim.commerce.order.product.domain.Product;
 import jakarta.persistence.*;
@@ -35,7 +35,7 @@ public class InventoryReservation {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ReservationStatus status;
+    private EReservationStatus status;
 
 
     @Column(nullable = false)

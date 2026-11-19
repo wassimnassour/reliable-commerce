@@ -1,8 +1,11 @@
 package com.wassim.commerce.order.messaging.handlers.PaymentHandlers;
 
+import com.wassim.commerce.order.inventory.domain.InventoryReservation;
+import com.wassim.commerce.order.inventory.service.impl.InventoryServiceImpl;
 import com.wassim.commerce.order.messaging.config.destinations.PaymentMessagingDestinations;
 import com.wassim.commerce.order.messaging.inbox.persistence.InboxRepository;
 import com.wassim.commerce.order.messaging.outbox.events.PaymentCompletedEvent;
+import com.wassim.commerce.order.payment.enums.EPaymentStatus;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,10 +19,11 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 @Component 
 public class PaymentCompletedEventHandler implements EventHandler {
-    private final ObjectMapper objectMapper;
     Logger log =  LoggerFactory.getLogger(PaymentCompletedEventHandler.class);
+    private final ObjectMapper objectMapper;
     private final PaymentMessagingDestinations paymentMessagingDestinations;
     private final InboxRepository inboxRepository;
+    private final InventoryServiceImpl inventoryService;
 
     @Override
 	public String routingKey() {
@@ -39,6 +43,10 @@ public class PaymentCompletedEventHandler implements EventHandler {
 
         try{
             PaymentCompletedEvent event = objectMapper.readValue(payload, PaymentCompletedEvent.class);
+            if(event.status() == EPaymentStatus.SUCCEEDED){
+                inventoryService.confirm(event.orderId());
+            }
+
             log.info("Processing order cancellation for order ID: {}",  event.orderId());
 
         } catch (JacksonException e) {

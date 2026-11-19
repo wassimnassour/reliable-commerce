@@ -1,7 +1,7 @@
 package com.wassim.commerce.order.payment.service.impl;
 
 import com.wassim.commerce.order.exaptions.BadRequest;
-import com.wassim.commerce.order.inventory.enums.ReservationStatus;
+import com.wassim.commerce.order.inventory.enums.EReservationStatus;
 import com.wassim.commerce.order.inventory.persistence.InventoryReservationRepository;
 import com.wassim.commerce.order.messaging.config.destinations.PaymentMessagingDestinations;
 import com.wassim.commerce.order.messaging.outbox.events.PaymentCompletedEvent;
@@ -87,7 +87,7 @@ public class PaymentServiceImpl implements PaymentService {
         // Keep duplicate callbacks above this check so successful retries remain idempotent.
         if (result == EPaymentStatus.SUCCEEDED
                 && reservationRepository.existsByOrder_IdAndStatusAndExpiresAtLessThanEqual(
-                        order.getId(), ReservationStatus.RESERVED, Instant.now())) {
+                        order.getId(), EReservationStatus.RESERVED, Instant.now())) {
             throw new BadRequest("Inventory reservation has expired");
         }
 

@@ -1,6 +1,6 @@
 package com.wassim.commerce.order.inventory.enums;
 
-public enum ReservationStatus {
+public enum EReservationStatus {
     RESERVED,
     CONFIRMED,
     RELEASED,
