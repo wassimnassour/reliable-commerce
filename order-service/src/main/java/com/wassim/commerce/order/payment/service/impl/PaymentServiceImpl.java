@@ -1,6 +1,8 @@
 package com.wassim.commerce.order.payment.service.impl;
 
 import com.wassim.commerce.order.exaptions.BadRequest;
+import com.wassim.commerce.order.inventory.enums.ReservationStatus;
+import com.wassim.commerce.order.inventory.persistence.InventoryReservationRepository;
 import com.wassim.commerce.order.messaging.config.destinations.PaymentMessagingDestinations;
 import com.wassim.commerce.order.messaging.outbox.events.PaymentCompletedEvent;
 import com.wassim.commerce.order.messaging.outbox.records.PublishRequestRecord;
@@ -18,11 +20,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 @Service
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
+    private final InventoryReservationRepository reservationRepository;
     private final PaymentMapper paymentMapper;
     private final OutboxService outboxService;
     private final PaymentMessagingDestinations paymentMessagingDestinations;
@@ -76,6 +81,14 @@ public class PaymentServiceImpl implements PaymentService {
 
         if (order.getOrderStatus() != EOrderStatus.PENDING_PAYMENT) {
             throw new BadRequest("Order is not pending payment");
+        }
+
+        // The Order lock also coordinates cancellation and scheduled expiration.
+        // Keep duplicate callbacks above this check so successful retries remain idempotent.
+        if (result == EPaymentStatus.SUCCEEDED
+                && reservationRepository.existsByOrder_IdAndStatusAndExpiresAtLessThanEqual(
+                        order.getId(), ReservationStatus.RESERVED, Instant.now())) {
+            throw new BadRequest("Inventory reservation has expired");
         }
 
         payment.setStatus(result);

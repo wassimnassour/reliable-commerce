@@ -8,6 +8,7 @@
     import org.springframework.data.repository.query.Param;
     import org.springframework.stereotype.Repository;
 
+    import java.util.List;
     import java.util.Optional;
 
     @Repository
@@ -36,4 +37,25 @@
                 nativeQuery = true
         )
         Optional<Order> findAndLockByPaymentId(@Param("paymentId") Long paymentId);
+
+
+
+        @Query(value = """
+    SELECT o.id
+    FROM orders o
+    WHERE o.order_status = 'PENDING_PAYMENT'
+      AND EXISTS (
+          SELECT 1
+          FROM inventory_reservations ir
+          WHERE ir.order_id = o.id
+            AND ir.status = 'RESERVED'
+            AND ir.expires_at <= CURRENT_TIMESTAMP
+      )
+    ORDER BY o.id
+    FOR UPDATE OF o SKIP LOCKED
+    LIMIT :batchSize
+    """, nativeQuery = true)
+        List<Long> findExpiredOrderIdsForUpdate(
+                @Param("batchSize") int batchSize
+        );
     }

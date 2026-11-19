@@ -56,6 +56,9 @@ class CancelOrderTest {
     @Autowired
     private TransactionTemplate transactionTemplate;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @MockitoBean
     private OutboxPoller outboxPoller;
 
@@ -118,9 +121,10 @@ class CancelOrderTest {
                     ).isEqualTo(EOrderStatus.CANCELED);
 
                     assertThat(
-                            productRepository.findById(product.getId())
-                                    .orElseThrow()
-                                    .getInventory().getAvailableQuantity()
+                            // releaseStock uses native SQL; read the database rather than
+                            // the Inventory entity cached earlier in this transaction.
+                            jdbc.queryForObject("SELECT total_quantity - reserved_quantity FROM inventory WHERE product_id = ?",
+                                    Integer.class, product.getId())
                     ).isEqualTo(stockBefore + 1);
 
                     assertThat(outboxRepository.count())
