@@ -55,10 +55,7 @@ public class InventoryExpirationService {
             return false;
         }
 
-        var payment = paymentRepository.findByOrderId(orderId);
-
-        if (payment.isPresent()
-                && payment.get().getStatus() == EPaymentStatus.SUCCEEDED) {
+        if (paymentRepository.existsByOrder_IdAndStatus(orderId, EPaymentStatus.SUCCEEDED)) {
 
             log.error(
                     "Order {} has a successful payment but is still pending. "
