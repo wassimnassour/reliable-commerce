@@ -3,7 +3,7 @@ package com.wassim.commerce.order.inventory;
 import com.wassim.commerce.order.TestcontainersConfiguration;
 import com.wassim.commerce.order.exaptions.BadRequest;
 import com.wassim.commerce.order.fixtures.CommerceFixtures;
-import com.wassim.commerce.order.inventory.enums.ReservationStatus;
+import com.wassim.commerce.order.inventory.enums.EReservationStatus;
 import com.wassim.commerce.order.inventory.persistence.InventoryRepository;
 import com.wassim.commerce.order.inventory.persistence.InventoryReservationRepository;
 import com.wassim.commerce.order.inventory.service.impl.InventoryExpirationService;
@@ -50,7 +50,7 @@ class InventoryExpirationIntegrationTest {
     @Test
     void expiresBothUnpaidReservationsAndReleasesInventoryExactlyOnce() {
         var order = createOrder();
-        assertReservations(order, ReservationStatus.RESERVED);
+        assertReservations(order, EReservationStatus.RESERVED);
         assertStock(order, 2, 3);
         passDeadline(order);
 
@@ -73,7 +73,7 @@ class InventoryExpirationIntegrationTest {
                 .isInstanceOf(BadRequest.class).hasMessage("Inventory reservation has expired");
         assertThat(payments.findById(payment.paymentId()).orElseThrow().getStatus()).isEqualTo(EPaymentStatus.PENDING);
         assertThat(orders.findById(order.id()).orElseThrow().getOrderStatus()).isEqualTo(EOrderStatus.PENDING_PAYMENT);
-        assertReservations(order, ReservationStatus.RESERVED);
+        assertReservations(order, EReservationStatus.RESERVED);
         assertStock(order, 2, 3);
         assertThat(payments.count()).isEqualTo(paymentCount);
         assertThat(reservations.count()).isEqualTo(reservationCount);
@@ -94,7 +94,7 @@ class InventoryExpirationIntegrationTest {
         assertThat(expiration.processBatch()).isZero();
         assertThat(orders.findById(order.id()).orElseThrow().getOrderStatus()).isEqualTo(EOrderStatus.PAID);
         assertThat(payments.findById(payment.paymentId()).orElseThrow().getStatus()).isEqualTo(EPaymentStatus.SUCCEEDED);
-        assertReservations(order, ReservationStatus.RESERVED);
+        assertReservations(order, EReservationStatus.RESERVED);
         assertStock(order, 2, 3);
     }
 
@@ -126,7 +126,7 @@ class InventoryExpirationIntegrationTest {
         assertThat(expiration.processBatch()).isZero();
         assertThat(orders.findById(order.id()).orElseThrow().getOrderStatus()).isEqualTo(EOrderStatus.PENDING_PAYMENT);
         assertStock(order, 2, 3);
-        assertReservations(order, ReservationStatus.RESERVED);
+        assertReservations(order, EReservationStatus.RESERVED);
         assertThat(payments.findById(successful.paymentId()).orElseThrow().getStatus()).isEqualTo(EPaymentStatus.SUCCEEDED);
         // Keep the deliberately inconsistent row out of subsequent batch assertions.
         jdbc.update("UPDATE orders SET order_status = 'PAID' WHERE id = ?", order.id());
@@ -165,7 +165,7 @@ class InventoryExpirationIntegrationTest {
         assertThatThrownBy(() -> expiration.processBatch()).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to release reserved inventory");
         assertThat(orders.findById(order.id()).orElseThrow().getOrderStatus()).isEqualTo(EOrderStatus.PENDING_PAYMENT);
-        assertReservations(order, ReservationStatus.RESERVED);
+        assertReservations(order, EReservationStatus.RESERVED);
         assertStock(order, 2, 0);
         jdbc.update("UPDATE inventory SET reserved_quantity = 3 WHERE product_id = ?", order.productIds().get(1));
         assertThat(expiration.processBatch()).isEqualTo(1);
@@ -186,7 +186,7 @@ class InventoryExpirationIntegrationTest {
         jdbc.update("UPDATE inventory_reservations SET expires_at = CURRENT_TIMESTAMP - INTERVAL '1 minute' WHERE order_id = ?", order.id());
     }
 
-    private void assertReservations(TestOrder order, ReservationStatus expected) {
+    private void assertReservations(TestOrder order, EReservationStatus expected) {
         assertThat(reservations.findAllByOrderId(order.id())).hasSize(2)
                 .allSatisfy(reservation -> assertThat(reservation.getStatus()).isEqualTo(expected));
     }
@@ -201,7 +201,7 @@ class InventoryExpirationIntegrationTest {
 
     private void assertExpired(TestOrder order) {
         assertThat(orders.findById(order.id()).orElseThrow().getOrderStatus()).isEqualTo(EOrderStatus.EXPIRED);
-        assertReservations(order, ReservationStatus.EXPIRED);
+        assertReservations(order, EReservationStatus.EXPIRED);
         assertStock(order, 0, 0);
     }
 

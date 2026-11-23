@@ -30,5 +30,15 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
             WHERE product_id = :productId AND :quantity > 0 AND reserved_quantity >= :quantity
             """, nativeQuery = true)
     int releaseStock(@Param("productId") Long productId, @Param("quantity") int quantity);
+    @Modifying
+    @Query(value = """
+            UPDATE inventory
+            SET total_quantity = total_quantity - :quantity,
+                reserved_quantity = reserved_quantity - :quantity,
+                version = version + 1
+            WHERE product_id = :productId AND :quantity > 0
+              AND reserved_quantity >= :quantity AND total_quantity >= :quantity
+            """, nativeQuery = true)
+    int confirmStock(@Param("productId") Long productId, @Param("quantity") int quantity);
 }
 

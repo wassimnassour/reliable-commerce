@@ -1,7 +1,7 @@
 package com.wassim.commerce.order.inventory.persistence;
 
 import com.wassim.commerce.order.inventory.domain.InventoryReservation;
-import com.wassim.commerce.order.inventory.enums.ReservationStatus;
+import com.wassim.commerce.order.inventory.enums.EReservationStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+
 
 @Repository
 public interface InventoryReservationRepository extends JpaRepository<InventoryReservation, Long> {
@@ -24,7 +25,7 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
                                               @Param("productId") Long productId);
 
     boolean existsByOrder_IdAndStatusAndExpiresAtLessThanEqual(
-            Long orderId, ReservationStatus status, Instant deadline);
+            Long orderId, EReservationStatus status, Instant deadline);
 
     @Query("""
     SELECT r
@@ -36,6 +37,14 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
             @Param("orderId") Long orderId
     );
 
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+    SELECT r FROM InventoryReservation r
+    WHERE r.order.id = :orderId
+    ORDER BY r.product.id
+    """)
+    List<InventoryReservation> findAllByOrderIdForUpdate(@Param("orderId") Long orderId);
 
 }
 
