@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+
 @Repository
 public interface InventoryReservationRepository extends JpaRepository<InventoryReservation, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -36,6 +37,14 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
             @Param("orderId") Long orderId
     );
 
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+    SELECT r FROM InventoryReservation r
+    WHERE r.order.id = :orderId
+    ORDER BY r.product.id
+    """)
+    List<InventoryReservation> findAllByOrderIdForUpdate(@Param("orderId") Long orderId);
 
 }
 

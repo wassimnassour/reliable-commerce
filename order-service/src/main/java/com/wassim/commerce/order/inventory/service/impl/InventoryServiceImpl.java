@@ -62,17 +62,20 @@ public class InventoryServiceImpl implements InventoryService {
         reservation.setStatus(EReservationStatus.RELEASED);
     }
 
-
     @Override
     @Transactional
-    public void confirm(Long orderId){
-        List<InventoryReservation> reservations  = inventoryReservationRepository.findAllByOrderId(orderId);
-        for(InventoryReservation reservation : reservations){
-            if(reservation.getStatus() == EReservationStatus.CONFIRMED){
-                return;
+    public void confirm(Long orderId) {
+        List<InventoryReservation> reservations = inventoryReservationRepository.findAllByOrderIdForUpdate(orderId);
+        for (InventoryReservation reservation : reservations) {
+            if (reservation.getStatus() == EReservationStatus.CONFIRMED) {
+                continue;
             }
-            if(reservation.getStatus() == EReservationStatus.EXPIRED || reservation.getStatus() == EReservationStatus.RESERVED){
-                throw new IllegalStateException("Cannot confirm a confirmed reservation");
+            if (reservation.getStatus() != EReservationStatus.RESERVED) {
+                throw new IllegalStateException("Cannot confirm a released or expired reservation");
+            }
+            Long productId = reservation.getProduct().getId();
+            if (inventoryRepository.confirmStock(productId, reservation.getQuantity()) != 1) {
+                throw new IllegalStateException("Cannot confirm reserved stock for product " + productId);
             }
             reservation.setStatus(EReservationStatus.CONFIRMED);
         }
