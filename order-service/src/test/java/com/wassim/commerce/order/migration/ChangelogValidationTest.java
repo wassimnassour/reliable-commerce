@@ -19,6 +19,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChangelogValidationTest {
 
+    @Test
+    void reconciliationDefaultGeneratesValidPostgresTimestampLiteral() throws Exception {
+        try (var resources = new ClassLoaderResourceAccessor()) {
+            var database = DatabaseFactory.getInstance()
+                    .findCorrectDatabaseImplementation(new OfflineConnection("offline:postgresql", resources));
+            try (var liquibase = new Liquibase("db/changelog/031-payment-reconciliation-claims.yaml",
+                    resources, database)) {
+                var sql = new StringWriter();
+                liquibase.update(new Contexts(), new LabelExpression(), sql);
+                assertTrue(sql.toString().contains(
+                        "DEFAULT TIMESTAMPTZ '1970-01-01 00:00:00+00' NOT NULL"));
+                assertFalse(sql.toString().contains("DEFAULT 1970-01-01T00:00:00Z"));
+            }
+        }
+    }
+
     @AfterEach
     void cleanup() {
         File csv = new File("databasechangelog.csv");
