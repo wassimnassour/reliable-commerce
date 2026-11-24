@@ -86,3 +86,6 @@ databaseChangeLog:
   - include:
       file: 030-inventory-stock-counters.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 031-payment-reconciliation-claims.yaml
+      relativeToChangelogFile: true
