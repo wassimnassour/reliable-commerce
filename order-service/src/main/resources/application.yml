@@ -43,6 +43,15 @@ inventory:
   expiration:
     poll-delay-ms: 60000
 
+payment:
+  reconciliation:
+    minimum-age: PT60S
+    poll-delay-ms: 30000
+    # Must exceed the maximum time to process a batch, including provider timeouts.
+    claim-duration: PT5M
+    retry-delay: PT30S
+    batch-size: 20
+
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiration-ms: 900000     # 15 Minutes
