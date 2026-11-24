@@ -1,0 +1,51 @@
+databaseChangeLog:
+  - changeSet:
+      id: 032-create-payment-refunds
+      author: wassim
+      changes:
+        - createTable:
+            tableName: payment_refunds
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  generationType: BY DEFAULT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: payment_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: NUMERIC(19, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(255)
+                  defaultValue: REFUND_REQUIRED
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            constraintName: payment_refunds_payment_id_fkey
+            baseTableName: payment_refunds
+            baseColumnNames: payment_id
+            referencedTableName: payments
+            referencedColumnNames: id
+            onDelete: RESTRICT
+        - addUniqueConstraint:
+            constraintName: payment_refunds_payment_id_key
+            tableName: payment_refunds
+            columnNames: payment_id
+      rollback:
+        - dropTable:
+            tableName: payment_refunds

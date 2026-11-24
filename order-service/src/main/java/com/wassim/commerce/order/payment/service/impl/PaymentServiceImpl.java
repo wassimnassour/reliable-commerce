@@ -14,6 +14,7 @@ import com.wassim.commerce.order.payment.domain.Payment;
 import com.wassim.commerce.order.payment.dto.response.PaymentResponse;
 import com.wassim.commerce.order.payment.enums.EPaymentStatus;
 import com.wassim.commerce.order.payment.mapper.PaymentMapper;
+import com.wassim.commerce.order.payment.persistence.PaymentRefundRepository;
 import com.wassim.commerce.order.payment.persistence.PaymentRepository;
 import com.wassim.commerce.order.payment.service.PaymentService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentMapper paymentMapper;
     private final OutboxService outboxService;
     private final PaymentMessagingDestinations paymentMessagingDestinations;
+    private final PaymentRefundRepository paymentRefundRepository;
 
 
     @Override
@@ -71,6 +73,8 @@ public class PaymentServiceImpl implements PaymentService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new BadRequest("Payment not found"));
 
+
+
         if (payment.getStatus() == result) {
             return;
         }
@@ -79,9 +83,23 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BadRequest("Payment already completed");
         }
 
+        if (result == EPaymentStatus.SUCCEEDED
+                && order.getOrderStatus() == EOrderStatus.EXPIRED) {
+            payment.setStatus(EPaymentStatus.SUCCEEDED);
+            paymentRefundRepository.recordRefundRequired(
+                    payment.getId(),
+                    payment.getAmount(),
+                    payment.getCurrency().name()
+            );
+            return;
+        }
+
+
         if (order.getOrderStatus() != EOrderStatus.PENDING_PAYMENT) {
             throw new BadRequest("Order is not pending payment");
         }
+
+
 
         // The Order lock also coordinates cancellation and scheduled expiration.
         // Keep duplicate callbacks above this check so successful retries remain idempotent.
