@@ -14,6 +14,7 @@ import com.wassim.commerce.order.product.persistence.ProductRepository;
 import com.wassim.commerce.order.product.persistence.specification.ProductSpecification;
 import com.wassim.commerce.order.product.service.ProductService;
 import jakarta.transaction.Transactional;
+import jakarta.persistence.criteria.JoinType;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -63,13 +64,22 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductSliceResponse getAllProducts(ProductFilter productFilter) {
+
+
         Specification<Product> specification =  Specification.where(
                 ProductSpecification.productNameLike(productFilter.name())
         ).and(
                 ProductSpecification.productPriceAtLeast(productFilter.minPrice())
         ).and(
                 ProductSpecification.productPriceAtMost(productFilter.maxPrice())
+        ).and(
+                (root, query, criteriaBuilder) -> {
+                    root.fetch("inventory", JoinType.LEFT);
+                    return criteriaBuilder.conjunction();
+                }
         );
+
+
         String[] sortParts = productFilter.sortBy().split(",");
         String property = switch (sortParts[0]) {
             case "name" -> "productName";

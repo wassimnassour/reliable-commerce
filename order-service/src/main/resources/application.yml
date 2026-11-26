@@ -1,4 +1,5 @@
 spring:
+
   config:
     import: classpath:rabbitMq/rabbitMqKeysConfig.yaml
   application:
@@ -56,6 +57,12 @@ jwt:
   secret: ${JWT_SECRET}
   access-token-expiration-ms: 900000     # 15 Minutes
   refresh-token-expiration-ms: 604800000  # 7 Days
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+
+
 
 
 
